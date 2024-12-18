@@ -28,9 +28,9 @@ jobs:
     - name: Download Clang-aosp
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r498229b.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r498229b.tar.gz
-    
+      wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2023/clang-r487747c.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r487747c.tar.gz
+        
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
