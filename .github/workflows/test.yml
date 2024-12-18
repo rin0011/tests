@@ -1,4 +1,4 @@
-name: Build test
+name: Build aston OPlus SM8550 Kernel
 
 on:
   workflow_dispatch:
@@ -29,17 +29,17 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2023/clang-r487747c.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r487747c.tar.gz
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r498229b.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r498229b.tar.gz
     
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --recursive https://github.com/rin0011/android_kernel_oneplus_sm8550 -b test android-kernel --depth=1
+        git clone --recursive https://github.com/rin0011/android_kernel_oneplus_sm8550 -b lineage-21 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
-        
-   - name: Setup KernelSU
+
+    - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://github.com/rifsxd/KernelSU-Next/blob/susfs-a13-5.15/kernel/setup.sh" | bash -s susfs-a13-5.15
