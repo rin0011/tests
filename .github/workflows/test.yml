@@ -42,7 +42,7 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://github.com/rifsxd/KernelSU-Next/blob/next/kernel/setup.sh" | bash -s susfs-a13-5.15
+        curl -LSs "https://github.com/rifsxd/KernelSU-Next/blob/next/kernel/setup.sh" | bash -s next
         
       
     - name: Build kernel
