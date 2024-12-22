@@ -29,13 +29,13 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r498229b.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r498229b.tar.gz
-    
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2023/clang-r487747c.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r487747c.tar.gz
+        
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --recursive https://github.com/rin0011/android_kernel_oneplus_sm8550 -b lineage-21 android-kernel --depth=1
+        git clone --recursive https://github.com/rin0011/android_kernel_oneplus_sm8550 -b lineage-22.0 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
 
@@ -43,7 +43,7 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
-        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 11989)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
       
     - name: Build kernel
