@@ -45,8 +45,8 @@ jobs:
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-5.15
         KSU_VERSION=$(cd KernelSU-Next && expr $(/usr/bin/git rev-list --count HEAD) + 12102)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
-
-        git apply https://raw.githubusercontent.com/rin0011/tests/main/gki-android14-5.15.patch
+        wget https://github.com/rin0011/tests/main/gki-android14-5.15.patch
+        git apply gki-android14-5.15.patch
         
       
     - name: Build kernel
