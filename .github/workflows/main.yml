@@ -29,8 +29,8 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android15-qpr1-release/clang-r536225.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r536225.tar.gz
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r547379.tar.gz
         
     - name: Download kernel source
       run: |
