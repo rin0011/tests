@@ -30,7 +30,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
         wget https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst
-        tar -C clang-aosp/ tar --use-compress-program=unzstd -xvf neutron-clang-10032024.tar.zst
+        tar -C clang-aosp/ --use-compress-program=unzstd -xvf neutron-clang-10032024.tar.zst
         
     - name: Download kernel source
       run: |
