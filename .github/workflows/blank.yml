@@ -31,13 +31,13 @@ jobs:
         mkdir clang-aosp
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2024/clang-r510928.tar.gz
         tar -C clang-aosp/ -zxvf clang-r510928.tar.gz
-        
+    
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone --recursive https://github.com/rin0011/android_kernel_oneplus_sm8550 -b lineage-22.0 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
-        sed -i 's/ -dirty//g' setlocalversion
+        sed -i 's/ -dirty//g' setlocalversion        
       
     - name: Build kernel
       run: |
