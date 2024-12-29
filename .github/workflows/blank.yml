@@ -29,7 +29,7 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2023/clang-r522817.tar.gz
         tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
         
     - name: Download kernel source
@@ -38,8 +38,6 @@ jobs:
         git clone --recursive https://github.com/rin0011/android_kernel_oneplus_sm8550 -b lineage-22.0 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
-
-        echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
       
     - name: Build kernel
       run: |
