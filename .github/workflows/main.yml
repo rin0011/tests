@@ -1,4 +1,4 @@
-name: Build aston OPlus SM8550 Kernel
+name: Build ksu
 
 on:
   workflow_dispatch:
@@ -29,8 +29,8 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r547379.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r547379.tar.gz
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
         
     - name: Download kernel source
       run: |
