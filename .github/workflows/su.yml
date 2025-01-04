@@ -42,13 +42,9 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-5.15
-        KSU_VERSION=$(cd KernelSU-Next && expr $(/usr/bin/git rev-list --count HEAD) + 12102)
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+        KSU_VERSION=$(cd KernelSU-Next && expr $(/usr/bin/git rev-list --count HEAD) + 12205)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
-        wget https://gitlab.com/simonpunk/susfs4ksu/-/blob/b980b1e9d6f6b6e747e97fa2a555e961422a81e9/kernel_patches/50_add_susfs_in_gki-android14-5.15.patch
-        wget https://gitlab.com/simonpunk/susfs4ksu/-/blob/b980b1e9d6f6b6e747e97fa2a555e961422a81e9/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch
-        git apply gki-android14-5.15.patch
-        git apply 10_enable_susfs_for_ksu.patch
         
       
     - name: Build kernel
