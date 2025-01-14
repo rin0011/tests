@@ -51,9 +51,9 @@ jobs:
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
 
         cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
-        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-5.15.patch ./android-kernel/
-        cp ../susfs4ksu/kernel_patches/fs/* ./android-kernel/fs/
-        cp ../susfs4ksu/kernel_patches/include/linux/* ./android-kernel/include/linux/
+        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-5.15.patch ../android-kernel/
+        cp ../susfs4ksu/kernel_patches/fs/* ../android-kernel/fs/
+        cp ../susfs4ksu/kernel_patches/include/linux/* ../android-kernel/include/linux/
 
         cd ./KernelSU-Next
         patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
