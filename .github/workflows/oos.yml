@@ -42,44 +42,40 @@ jobs:
 
     - name: Setup KernelSU
       run: |
-        cd $GITHUB_WORKSPACE
         cd kernel_workspace/kernel_platform/common
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU/next/kernel/setup.sh" | bash -s next
         cd ./KernelSU-Next/kernel
         sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
 
     - name: clone susfs4ksu
-        run: |
-        cd $GITHUB_WORKSPACE
+      run: |
         cd kernel_workspace/kernel_platform
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-5.15
         git clone https://github.com/TheWildJames/kernel_patches.git
 
 
     - name: Add SUSFS
-        run: |
-          cd $GITHUB_WORKSPACE
-          cd kernel_workspace/kernel_platform/common
-          cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-5.15.patch ./
-          cp ../susfs4ksu/kernel_patches/fs/susfs.c ./fs/
-          cp ../susfs4ksu/kernel_patches/include/linux/susfs.h ./include/linux/
-          cd ./KernelSU-Next/
-          patch -p1 < 10_enable_susfs_for_ksu.patch
+      run: |
+        cd kernel_workspace/kernel_platform/common
+        cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-5.15.patch ./
+        cp ../susfs4ksu/kernel_patches/fs/susfs.c ./fs/
+        cp ../susfs4ksu/kernel_patches/include/linux/susfs.h ./include/linux/
+        cd ./KernelSU-Next/
+        patch -p1 < 10_enable_susfs_for_ksu.patch
 
     - name: Apply patches
       run: | 
-          cd $GITHUB_WORKSPACE
-          cd kernel_workspace/kernel_platform/common
-          patch -p1 < 50_add_susfs_in_gki-android14-5.15.patch || true
-          cp ../kernel_patches/69_hide_stuff.patch ./
-          patch -p1 -F 3 < 69_hide_stuff.patch || true
-          cp ../kernel_patches/selinux.c_fix.patch ./
-          patch -p1 -F 3 < selinux.c_fix.patch
-          cp ../kernel_patches/core_hook.c_fix.patch ./
-          patch -p1 --fuzz=3 < ./core_hook.c_fix.patch
-          cp ../kernel_patches/apk_sign.c_fix.patch ./
-          patch -p1 -F 3 < apk_sign.c_fix.patch
+        cd kernel_workspace/kernel_platform/common
+        patch -p1 < 50_add_susfs_in_gki-android14-5.15.patch || true
+        cp ../kernel_patches/69_hide_stuff.patch ./
+        patch -p1 -F 3 < 69_hide_stuff.patch || true
+        cp ../kernel_patches/selinux.c_fix.patch ./
+        patch -p1 -F 3 < selinux.c_fix.patch
+        cp ../kernel_patches/core_hook.c_fix.patch ./
+        patch -p1 --fuzz=3 < ./core_hook.c_fix.patch
+        cp ../kernel_patches/apk_sign.c_fix.patch ./
+        patch -p1 -F 3 < apk_sign.c_fix.patch
 
     - name: Make working directory clean to avoid dirty
       run: |
