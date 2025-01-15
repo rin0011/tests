@@ -43,7 +43,7 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd kernel_workspace/kernel_platform/common
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU/next/kernel/setup.sh" | bash -s next
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         cd ./KernelSU-Next/kernel
         sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
 
