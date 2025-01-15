@@ -51,14 +51,16 @@ jobs:
 
     - name: clone susfs4ksu
         run: |
-        cd $GITHUB_WORKSPACE/
+        cd $GITHUB_WORKSPACE
+        cd kernel_workspace/kernel_platform
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-5.15
         git clone https://github.com/TheWildJames/kernel_patches.git
 
 
     - name: Add SUSFS
         run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
+          cd $GITHUB_WORKSPACE
+          cd kernel_workspace/kernel_platform/common
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
