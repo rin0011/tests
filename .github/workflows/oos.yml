@@ -63,6 +63,7 @@ jobs:
         cp ../susfs4ksu/kernel_patches/include/linux/susfs.h ./include/linux/
         cd ./KernelSU-Next/
         patch -p1 < 10_enable_susfs_for_ksu.patch
+        cd ..
         
 
     - name: Apply patches
