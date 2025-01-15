@@ -117,7 +117,7 @@ jobs:
       run: |
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf ./AnyKernel3/.git
-        cp kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image ./AnyKernel3/
+        cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/dist/Image ./AnyKernel3/
 
     - name: Upload AnyKernel3
       uses: actions/upload-artifact@v4
@@ -129,10 +129,10 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Image-OSS-OPace3-V
-        path: kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image
+        path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/dist/Image
 
     - name: Upload boot.img
       uses: actions/upload-artifact@v4
       with:
         name: boot-OSS-OPace3-V.img
-        path: kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/boot.img
+        path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/dist/boot.img
