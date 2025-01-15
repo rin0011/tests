@@ -1,4 +1,4 @@
-name: OSS OPlus SM8550 Kernel
+name: OSS OPlus OOS Kernel
 
 on:
   workflow_dispatch:
@@ -50,7 +50,7 @@ jobs:
     - name: clone susfs4ksu
       run: |
         cd kernel_workspace/kernel_platform
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-5.15
+        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
         git clone https://github.com/TheWildJames/kernel_patches.git
 
 
@@ -58,11 +58,11 @@ jobs:
       run: |
         cd kernel_workspace/kernel_platform/common
         cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
-        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-5.15.patch ./
+        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../susfs4ksu/kernel_patches/fs/susfs.c ./fs/
         cp ../susfs4ksu/kernel_patches/include/linux/susfs.h ./include/linux/
         cd ./KernelSU-Next/
-        patch -p1 < 10_enable_susfs_for_ksu.patch
+        patch -p1 < 10_enable_susfs_for_ksu.patch || true
 
     - name: Apply patches
       run: | 
