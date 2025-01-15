@@ -1,9 +1,6 @@
-name: Build and Release Kernel
+name: OSS OPlus SM8550 Kernel
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -11,67 +8,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up Git configuration
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
+    - name: Configure Git
+      run: |
+         git config --global user.name "GitHub Actions"
+         git config --global user.email "actions@github.com"
 
-      - name: Set up environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y repo curl zip
+    - name: Clean up disk space
+      run: |
+        sudo apt-get clean
+        sudo rm -rf /usr/share/dotnet /etc/mysql /var/lib/mysql
+        sudo rm -rf /usr/local/lib/android
+        df -h
 
-      - name: Check and create 'builds' folder
-        run: |
-          if [ ! -d "./builds" ]; then
-              echo "'builds' folder not found. Creating it..."
-              mkdir -p ./builds
-          else
-              echo "'builds' folder already exists removing it."
-              rm -rf ./builds
-              mkdir -p ./builds
-          fi
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3 git curl zip
 
-      - name: Create root folder with current date and time
-        run: |
-          cd ./builds
-          ROOT_DIR="OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release"
-          echo "Creating root folder $ROOT_DIR..."
-          mkdir -p "$ROOT_DIR"
-          cd "$ROOT_DIR"
+    - name: Install repo tool
+      run: |
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+        chmod a+x ~/repo
+        sudo mv ~/repo /usr/local/bin/repo
 
-      - name: Clone repositories
-        run: |
-          cd ./builds/OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release
-          echo "Cloning repositories..."
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/TheWildJames/kernel_patches.git
+    - name: Initialize repo and sync
+      run: |
+        mkdir kernel_workspace && cd kernel_workspace
+        repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_12r_v.xml --depth=1
+        repo sync
 
-      - name: Get the kernel
-        run: |
-          echo "Get the kernel..."
-          mkdir oneplus12_v
-          cd ./oneplus12_v
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
-          repo sync -j$(nproc)
-          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+    - name: Setup KernelSU
+      run: |
+        cd $GITHUB_WORKSPACE
+        cd kernel_workspace/kernel_platform
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU/next/kernel/setup.sh" | bash -s next
+        cd ./KernelSU-Next/kernel
+        sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
+        cd ../../
 
-      - name: Add KernelSU
+    - name: clone susfs4ksu
         run: |
-          echo "adding ksu"
-          cd ./kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU/next/kernel/setup.sh" | bash -s next
-          cd ./KernelSU-Next/kernel
-          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
-          cd ../../
+        cd $GITHUB_WORKSPACE/
+        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-5.15
+        git clone https://github.com/TheWildJames/kernel_patches.git
 
-      - name: Add SUSFS
+
+    - name: Add SUSFS
         run: |
-          echo "adding susfs"
+          cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
@@ -90,57 +77,38 @@ jobs:
           cp ../kernel_patches/apk_sign.c_fix.patch ./
           patch -p1 -F 3 < apk_sign.c_fix.patch
 
-      - name: Build Kernel
-        run: |
-          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfigig
-          cd ..
-          sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+    - name: Make working directory clean to avoid dirty
+      run: |
+        cd kernel_workspace/kernel_platform/common
+        rm android/abi_gki_protected_exports_* || echo "No protected exports!"
+        git add -A && git commit -a -m "Add KernelSU"
+        repo status
 
-      - name: Copy Image
-        run: |
-          echo "Copying Image"
-          cp ./out/dist/Image ../AnyKernel3/Image
+    - name: Build kernel
+      run: |
+        cd kernel_workspace
+        ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
-      - name: Create zip file
-        run: |
-          echo "Navigating to AnyKernel3 directory..."
-          cd ../AnyKernel3
-          ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
-          echo "Creating zip file $ZIP_NAME..."
-          zip -r "../$ZIP_NAME" ./*
-          cd ..
+    - name: Make AnyKernel3
+      run: |
+        git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
+        rm -rf ./AnyKernel3/.git
+        cp kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image ./AnyKernel3/
 
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          REPO_OWNER="TheWildJames"
-          REPO_NAME="OnePlus_KernelSU_SUSFS"
-          TAG_NAME="v$(date +'%Y.%m.%d-%H%M%S')"
-          RELEASE_NAME="OP12 A15 android14-6.1 With KernelSU & SUSFS"
-          echo "Creating GitHub release for $RELEASE_NAME..."
-          gh release create "$TAG_NAME" "$ZIP_NAME" \
-            --repo "$REPO_OWNER/$REPO_NAME" \
-            --title "$RELEASE_NAME" \
-            --notes "Kernel release"
-          echo "GitHub release created and zip file uploaded."
+    - name: Upload AnyKernel3
+      uses: actions/upload-artifact@v4
+      with:
+        name: AnyKernel3-OSS-OPace3-V
+        path: ./AnyKernel3/*
 
-      - name: Final confirmation
-        run: echo "Build and packaging process complete."
+    - name: Upload kernel Image
+      uses: actions/upload-artifact@v4
+      with:
+        name: Image-OSS-OPace3-V
+        path: kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image
+
+    - name: Upload boot.img
+      uses: actions/upload-artifact@v4
+      with:
+        name: boot-OSS-OPace3-V.img
+        path: kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/boot.img
