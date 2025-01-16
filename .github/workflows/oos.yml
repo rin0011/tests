@@ -13,8 +13,8 @@ jobs:
 
     - name: Configure Git
       run: |
-         git config --global user.name "rin0011"
-         git config --global user.email "rin_89@outlook.com"
+         git config --global user.name "GitHub Actions"
+         git config --global user.email "actions@github.com"
 
     - name: Clean up disk space
       run: |
@@ -59,8 +59,8 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
         cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../susfs4ksu/kernel_patches/fs/susfs.c ./fs/
-        cp ../susfs4ksu/kernel_patches/include/linux/susfs.h ./include/linux/
+        cp ../susfs4ksu/kernel_patches/fs/* ./fs/
+        cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         cd ./KernelSU-Next/
         patch -p1 < 10_enable_susfs_for_ksu.patch || true
         
