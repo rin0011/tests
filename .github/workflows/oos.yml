@@ -112,8 +112,7 @@ jobs:
     - name: Make working directory clean to avoid dirty
       run: |
         cd kernel_workspace/kernel_platform/common
-        rm android/abi_gki_protected_exports_* || echo "No protected exports!"
-        git add -A && git commit -a -m "Add KernelSU"
+        rm -rf android/abi_gki_protected_exports_* || echo "No protected exports!"
         repo status
 
     - name: Build kernel
