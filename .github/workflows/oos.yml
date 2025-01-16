@@ -14,8 +14,8 @@ jobs:
 
     - name: Configure Git
       run: |
-         git config --global user.name "GitHub Actions"
-         git config --global user.email "actions@github.com"
+         git config --global user.name "rin0011"
+         git config --global user.email "rin_89@outlook.com"
 
     - name: Clean up disk space
       run: |
