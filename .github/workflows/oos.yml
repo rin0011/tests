@@ -1,4 +1,4 @@
-name: OSS OPlus OOS Kernel
+name: OPlus OOS Kernel
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     steps:
     - name: Checkout code
