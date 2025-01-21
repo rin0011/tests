@@ -54,7 +54,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
         cd ./KernelSU-Next/kernel
-        sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12000/' ./Makefile
+        sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=10200/' ./Makefile
 
     - name: clone susfs4ksu
       run: |
@@ -119,7 +119,7 @@ jobs:
     - name: Build kernel
       run: |
         cd kernel_workspace
-        ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
+        LTO=thin -flto=thin -Ofast ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
 
     - name: Make AnyKernel3
       run: |
