@@ -119,7 +119,7 @@ jobs:
     - name: Build kernel
       run: |
         cd kernel_workspace
-        LTO=thin -flto=thin -Ofast ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
+        LTO=thin LTO=Ofast ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
 
     - name: Make AnyKernel3
       run: |
