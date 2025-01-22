@@ -28,9 +28,7 @@ jobs:
     - name: Download Clang-aosp
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
+        git clone https://git.inferno0230.in/inferno0230/clang-r530567 --depth=1 clang-aosp
         
     
     - name: Download kernel source
@@ -93,10 +91,9 @@ jobs:
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         AR_CMD="ARCH=${ARCH} SUBARCH=${SUBARCH} HEADER_ARCH=${HEADER_ARCH}"
         BA_CMD="CC=clang CXX=clang++"
-        BUILD_CC="LLVM=1 LLVM_IAS=1"
         EX_CMD="LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LLVM=1 LLVM_IAS=1"
         DEFCONFIG="gki_defconfig vendor/kalama_GKI.config vendor/oplus/kalama_GKI.config vendor/debugfs.config vendor/oplus/aston.config"
-        make O=out $AR_CMD $BA_CMD $EX_CMD $BUILD_CC $DEFCONFIG
+        make O=out $AR_CMD $BA_CMD $EX_CMD $DEFCONFIG
         scripts/config --file out/.config -e LTO_CLANG -d LTO_NONE -e LTO_CLANG_THIN -d LTO_CLANG_FULL -e THINLTO
         make -j$(nproc --all) O=out $AR_CMD $BA_CMD $EX_CMD
     
