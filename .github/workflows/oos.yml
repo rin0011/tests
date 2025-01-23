@@ -109,6 +109,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfigig
         cd ..
         sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
+        sed -i 's/ -dirty//g' ./kernel_platform/common/scripts/setlocalversion
 
     - name: Make working directory clean to avoid dirty
       run: |
