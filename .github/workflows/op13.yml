@@ -38,23 +38,12 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
 
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
-
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs
         KSU_VERSION=$(cd KernelSU-Next && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
-
-    - name: Setup susfs
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-        cp ../susfs4ksu/kernel_patches/fs/* ./fs/
-        cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        patch -p1 -F 3 < 50_add_susfs_in_gki-android15-6.6.patch
 
     - name: Build kernel
       run: |
