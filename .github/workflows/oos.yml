@@ -38,7 +38,7 @@ jobs:
     - name: Initialize repo and sync
       run: |
         mkdir kernel_workspace && cd kernel_workspace
-        repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
+        repo init -u https://github.com/rin0011/tests.git -b refs/heads/main -m op3.xml --depth=1
         repo sync
 
     - name: Setup KernelSU
