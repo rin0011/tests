@@ -45,6 +45,7 @@ jobs:
         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
         sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
         repo status
+        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
 
     - name: Setup KernelSU
       run: |
@@ -58,10 +59,9 @@ jobs:
     - name: Add SUSFS
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
-        cp ./susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ./susfs4ksu/kernel_patches/fs/* ./fs/
-        cp ./susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+        cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
+        cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
+        cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         
     - name: Build defconfig
@@ -99,7 +99,7 @@ jobs:
     - name: Upload AnyKernel3
       uses: actions/upload-artifact@v4
       with:
-        name: AnyKernel3-OSS-OPace3
+        name: AnyKernel3-OSS-OPace3-V
         path: ./AnyKernel3/*
 
     - name: Upload kernel Image
