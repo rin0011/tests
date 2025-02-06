@@ -38,7 +38,7 @@ jobs:
     - name: Initialize repo and sync
       run: |
         mkdir kernel_workspace && cd kernel_workspace
-        repo init -u https://github.com/rin0011/tests.git -b refs/heads/main -m op3.xml --depth=1
+        repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
         repo sync
 
     - name: Setup KernelSU
@@ -80,7 +80,6 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfigig
-        echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
         cd ..
         sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
         sed -i '2s/check_defconfig//' ./kernel_platform/msm-kernel/build.config.gki
