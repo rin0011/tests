@@ -96,7 +96,7 @@ jobs:
     - name: Build kernel
       run: |
         cd kernel_workspace
-        LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
+        LTO=thin CFLAGS="-Wframe-larger-than=4096" LDFLAGS="--plugin-opt=-warn-stack-size=4096" ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
 
     - name: Make AnyKernel3
       run: |
