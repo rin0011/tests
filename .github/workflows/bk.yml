@@ -191,11 +191,11 @@ jobs:
       - name: Build Kernel
         working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplusace3_v/
         run: |
-          cd kernel_platform
+          cd kernel_platform/oneplusace3_v
           mkdir out
           export PATH="/usr/lib/ccache:$PATH"
           # Modified build command with correct syntax
-          ./oplus/build/oplus_build_kernel.sh \
+          ./kernel_platform/oplus/build/oplus_build_kernel.sh \
             -t kalama \
             gki \
             --jobs=$(nproc --all) \
