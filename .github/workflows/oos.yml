@@ -39,7 +39,7 @@ jobs:
       run: |
         mkdir kernel_workspace && cd kernel_workspace
         repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
-        repo sync
+        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
         rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
