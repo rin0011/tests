@@ -48,12 +48,11 @@ jobs:
         sed -i '2s/check_defconfig//' ./kernel_platform/msm-kernel/build.config.gki
         repo status
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
-        git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
 
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
-        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s main
+        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -s susfs-v1.5.5
         cd KernelSU
         KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
@@ -65,12 +64,6 @@ jobs:
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
-        cp ../../kernel_patches/mksu_susfs.patch ./KernelSU/
-        cd KernelSU
-        patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-        patch -p1 < mksu_susfs.patch
-        cd ../
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         
     - name: Build defconfig
