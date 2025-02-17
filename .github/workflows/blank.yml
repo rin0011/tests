@@ -49,12 +49,12 @@ jobs:
         KSU_VERSION=$(cd KernelSU && git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
 
-        cp ../susfs4ksu/kernel_patches/mksu_susfs.patch ./KernelSU/
+        cp ../kernel_patches/mksu_susfs.patch ./KernelSU/
         cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
 
         cd ./KernelSU
         patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-        patch -p1 < mksu_susfs.patch
+        patch -p1 < mksu_susfs.patch || true
 
     - name: Setup susfs
       run: |
