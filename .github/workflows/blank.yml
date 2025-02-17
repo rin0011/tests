@@ -45,14 +45,16 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-        KSU_VERSION=$(cd KernelSU-Next && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
+        curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -s main
+        KSU_VERSION=$(cd KernelSU && git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
 
-        cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+        cp ../susfs4ksu/kernel_patches/mksu_susfs.patch ./KernelSU/
+        cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
 
-        cd ./KernelSU-Next
+        cd ./KernelSU
         patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+        patch -p1 < mksu_susfs.patch
 
     - name: Setup susfs
       run: |
@@ -63,21 +65,6 @@ jobs:
         patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
         cp ../kernel_patches/69_hide_stuff.patch ./
         patch -p1 -F 3 < 69_hide_stuff.patch
-
-    - name: Setup ksu
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/
-                    
-        cp ../kernel_patches/apk_sign.c_fix.patch ./
-        patch -p1 -F 3 < apk_sign.c_fix.patch
-            
-        cp ../kernel_patches/core_hook.c_fix.patch ./
-        patch -p1 --fuzz=3 < ./core_hook.c_fix.patch
-
-        cp ../kernel_patches/selinux.c_fix.patch ./
-        patch -p1 -F 3 < selinux.c_fix.patch
-
-
 
     - name: Build kernel
       run: |
