@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set swap to 10G
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 10
-    
+
     - name: Setup build kernel environment
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
@@ -29,8 +29,9 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
-        tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
+        #wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+        git archive --remote=https://git.codelinaro.org/clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git aosp-new/android15-qpr1-s4-release clang-r536225 | tar -x -C clang-aosp/
+        #tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
         
     - name: Download kernel source
       run: |
