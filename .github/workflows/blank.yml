@@ -47,7 +47,7 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -s main
-        KSU_VERSION=$(cd KernelSU && git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
 
         cp ../kernel_patches/mksu_susfs.patch ./KernelSU/
