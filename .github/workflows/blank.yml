@@ -29,7 +29,9 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        git archive --remote=git@git.codelinaro.org:clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git 2de087e0ceeecc0ee944f800f874f3657a4ffcb7 | tar -x -C ./clang-aosp
+        #wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+        #tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
+        git clone -b aosp-new/llvm-r536225-release --depth=1 https://git.codelinaro.org/clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git clang-aosp
         
     - name: Download kernel source
       run: |
