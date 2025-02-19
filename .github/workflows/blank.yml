@@ -29,7 +29,7 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        git archive --remote=git@git.codelinaro.org:clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git aosp-new/android15-qpr1-s4-release linux-x86/clang-r536225 | tar -x
+        git archive --remote=git@git.codelinaro.org:clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git 2de087e0ceeecc0ee944f800f874f3657a4ffcb7 | tar -x -C ./clang-aosp
         
     - name: Download kernel source
       run: |
