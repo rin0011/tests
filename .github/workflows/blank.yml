@@ -51,11 +51,13 @@ jobs:
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
 
         cp ../kernel_patches/mksu_susfs.patch ./KernelSU/
+        cp ../kernel_patches/fix.patch ./KernelSU/
         cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
 
         cd ./KernelSU
         patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
         patch -p1 < mksu_susfs.patch || true
+        patch -p1 < fix.patch || true
 
     - name: Setup susfs
       run: |
