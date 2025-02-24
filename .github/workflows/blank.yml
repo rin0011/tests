@@ -39,35 +39,12 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
 
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
-        git clone https://github.com/TheWildJames/kernel_patches.git
-
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -s main
         KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
-
-        cp ../kernel_patches/mksu_susfs.patch ./KernelSU/
-        #cp ../kernel_patches/fix.patch ./KernelSU/
-        cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
-
-        cd ./KernelSU
-        patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-        patch -p1 < mksu_susfs.patch || true
-        #patch -p1 < fix.patch || true
-
-    - name: Setup susfs
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../susfs4ksu/kernel_patches/fs/* ./fs/
-        cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
-        cp ../kernel_patches/69_hide_stuff.patch ./
-        patch -p1 -F 3 < 69_hide_stuff.patch
 
     - name: Build kernel
       run: |
