@@ -93,5 +93,5 @@ jobs:
       if: env.CHECK_IMAGE == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: AK3-aston${{ env.KSUVER }}-${{ env.BUILD_TIME }}
+        name: AK3-aston${{ env.KSUVER }}
         path: kernel_workspace/AnyKernel3/*
