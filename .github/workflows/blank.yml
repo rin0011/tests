@@ -28,9 +28,10 @@ jobs:
     - name: Download Clang-aosp
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone -b aosp-new/android15-qpr1-s4-release https://git.codelinaro.org/clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git --depth=1 clang-aosp
+        mkdir clang-aosp
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
         
-    
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
