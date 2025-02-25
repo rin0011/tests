@@ -41,12 +41,11 @@ jobs:
 
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
-        #git clone https://github.com/TheWildJames/kernel_patches.git
 
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/susfs-v1.5.5/kernel/setup.sh" | bash -
+        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" | bash -S susfs-v1.5.5
         KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
 
