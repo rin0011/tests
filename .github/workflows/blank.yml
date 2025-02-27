@@ -41,7 +41,8 @@ jobs:
 
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
-        git clone https://github.com/WildPlusKernel/kernel_patches.git
+        #git clone https://github.com/WildPlusKernel/kernel_patches.git
+        git clone https://github.com/rin0011/test.git
         
     - name: Setup KernelSU
       run: |
@@ -59,7 +60,7 @@ jobs:
         cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
         cd KernelSU-Next
-        cp ../../kernel_patches/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch ./
+        cp ../../test/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch ./
         patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
 
     - name: Build kernel
