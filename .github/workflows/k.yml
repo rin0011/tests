@@ -56,8 +56,8 @@ jobs:
         cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        cp ../kernel_patches/bbr/bbv3-5.15+.patch ./
-        patch -p1 --forward < bbv3-5.15+.patch
+        cp ../kernel_patches/bbr/bbrv3-5.15+.patch ./
+        patch -p1 --forward < bbrv3-5.15+.patch
         patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
 
     - name: Build kernel
