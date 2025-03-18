@@ -71,7 +71,8 @@ jobs:
         patch -p1 --forward < 10_enable_susfs_for_ksu.patch
         #cd KernelSU-Next
         #patch -p1 --forward < KernelSU-Next-Implement-SUSFS-v1.5.5-Universal.patch || true
-        cd .. && cd ..
+        cd ..
+        cd ..
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         patch -p1 -F 3 < syscall_hooks.patch ||true
         
