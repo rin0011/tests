@@ -1,4 +1,4 @@
-name: OOS-next Kernel
+name: OPlus rk Kernel
 
 on:
   workflow_dispatch:
@@ -41,36 +41,39 @@ jobs:
         repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+        rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
+        sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
         sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
+        sed -i '2s/check_defconfig//' ./kernel_platform/msm-kernel/build.config.gki
         repo status
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
         git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
 
     - name: Setup KernelSU
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
-        cd KernelSU-Next
+        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
+        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/refs/heads/susfs-v1.5.5/kernel/setup.sh" | bash -s susfs-v1.5.5
+        cd KernelSU
         KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-        
+
     - name: Add SUSFS
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../kernel_patches/next/syscall_hooks.patch ./
+        cp ../../kernel_patches/hooks/new_hooks.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 -F 3 < new_hooks.patch
         
     - name: Build defconfig
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
         echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_WITH_KPROBES=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -87,7 +90,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
         # Add additional config setting
         echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
