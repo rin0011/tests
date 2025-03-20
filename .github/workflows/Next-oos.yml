@@ -1,4 +1,4 @@
-name: OPlus rk Kernel
+name: OPlus NEXT Kernel
 
 on:
   workflow_dispatch:
@@ -53,8 +53,8 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
-        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/refs/heads/susfs-v1.5.5/kernel/setup.sh" | bash -s susfs-v1.5.5
-        cd KernelSU
+        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
+        cd KernelSU-Next
         KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
@@ -62,18 +62,19 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../kernel_patches/hooks/new_hooks.patch ./
+        cp ../../kernel_patches/next/syscall_hooks.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 -F 3 < new_hooks.patch
+        patch -p1 -F 3 < syscall_hooks.patch
         
     - name: Build defconfig
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
         echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_WITH_KPOBES=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
