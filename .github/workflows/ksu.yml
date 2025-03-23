@@ -134,6 +134,10 @@ jobs:
       with:
         name: boot-OSS-OPace3.img
         path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/boot.img
+        
+    - name: Setup build date
+      id: date
+      run: echo "current-date=$(date +'%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT    
 
     - name: Create Release and Upload Assets
       uses: softprops/action-gh-release@v2.0.4
