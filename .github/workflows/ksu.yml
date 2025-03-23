@@ -1,4 +1,4 @@
-name: OPlus NEXT Kernel
+name: OPlus Kernel
 
 on:
   workflow_dispatch:
@@ -10,6 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 2160
+    
+    permissions:
+      contents: write
+      actions: read
 
     steps:
     - name: Checkout code
