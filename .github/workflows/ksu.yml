@@ -140,7 +140,7 @@ jobs:
       run: echo "current-date=$(date +'%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT    
 
     - name: Create Release and Upload Assets
-      uses: softprops/action-gh-release@v2.0.4
+      uses: softprops/action-gh-release@v2
       if: ${{ success() }}
       timeout-minutes: 5
       retries: 2
@@ -157,8 +157,6 @@ jobs:
           **Build Details**
           - KernelSU Version: ${{ env.KSUVER }}
           - Build Date: ${{ steps.date.outputs.current-date }}
-          - Commit: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-          - Runner: ${{ runner.os }} (${{ runner.arch }})
         files: |
           AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
           kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image
