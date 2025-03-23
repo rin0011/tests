@@ -146,6 +146,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./AnyKernel3/*
+        asset_path: ./AnyKernel3
         asset_name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
         asset_content_type: application/zip
