@@ -137,7 +137,7 @@ jobs:
       with:
        tag_name: ${{ github.ref_name }} # 使用实际的标签名称
        release_name: Release ${{ github.ref_name }}
-       draft: false
+       draft: true
        prerelease: false
     
     - name: Upload Release Assets
