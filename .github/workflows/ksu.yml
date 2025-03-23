@@ -135,24 +135,27 @@ jobs:
         name: boot-OSS-OPace3.img
         path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/boot.img
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-
-    - name: Upload Release Assets
-      uses: actions/upload-release-asset@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
-        asset_name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
-        asset_content_type: application/zip
+     - name: Create Release and Upload Assets
+       uses: softprops/action-gh-release@v2.0.4 # 固定具体版本
+       if: ${{ success() }} # 仅在之前步骤成功时执行
+       timeout-minutes: 5 # 防止网络问题卡死
+       retries: 2 # 自动重试机制
+       continue-on-error: false # 严格失败检测
+     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+     with:
+      tag_name: ${{ github.ref_name }}
+      name: "Kernel ${{ github.ref_name }}"
+      draft: false # 直接发布正式版
+      prerelease: ${{ contains(github.ref_name, 'rc') }} # 自动识别测试版
+      generate_release_notes: true # 自动生成变更日志
+      body: |
+      **Build Details**
+      - KernelSU Version: ${{ env.KSUVER }}
+      - Build Date: ${{ steps.date.outputs.current-date }}
+      - Commit: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+      - Runner: ${{ runner.os }} (${{ runner.arch }})
+     files: |
+       AnyKernel3-OSS-OPace3-*.zip # 使用通配符匹配
+       kernel_platform/out/**/dist/*.img # 简化路径写法
+       kernel_platform/out/**/dist/Image
