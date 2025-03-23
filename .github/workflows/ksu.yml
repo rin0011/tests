@@ -142,20 +142,20 @@ jobs:
        retries: 2 # 自动重试机制
        continue-on-error: false # 严格失败检测
        env:
-       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
        with:
-      tag_name: ${{ github.ref_name }}
-      name: "Kernel ${{ github.ref_name }}"
-      draft: false # 直接发布正式版
-      prerelease: ${{ contains(github.ref_name, 'rc') }} # 自动识别测试版
-      generate_release_notes: true # 自动生成变更日志
+        tag_name: ${{ github.ref_name }}
+        name: "Kernel ${{ github.ref_name }}"
+        draft: false # 直接发布正式版
+        prerelease: ${{ contains(github.ref_name, 'rc') }} # 自动识别测试版
+        generate_release_notes: true # 自动生成变更日志
       body: |
-       **Build Details**
-       - KernelSU Version: ${{ env.KSUVER }}
-       - Build Date: ${{ steps.date.outputs.current-date }}
-       - Commit: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-       - Runner: ${{ runner.os }} (${{ runner.arch }})
-     files: |
-       AnyKernel3-OSS-OPace3-*.zip # 使用通配符匹配
-       kernel_platform/out/**/dist/*.img # 简化路径写法
-       kernel_platform/out/**/dist/Image
+        **Build Details**
+        - KernelSU Version: ${{ env.KSUVER }}
+        - Build Date: ${{ steps.date.outputs.current-date }}
+        - Commit: [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+        - Runner: ${{ runner.os }} (${{ runner.arch }})
+      files: |
+        AnyKernel3-OSS-OPace3-*.zip # 使用通配符匹配
+        kernel_platform/out/**/dist/*.img # 简化路径写法
+        kernel_platform/out/**/dist/Image
