@@ -17,7 +17,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Configure Git
       run: |
@@ -118,19 +118,19 @@ jobs:
         zip -r9 ../AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip *
 
     - name: Upload AnyKernel3
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}
         path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
 
     - name: Upload kernel Image
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: Image-OSS-${{ env.KSUVER }}
         path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image
 
     - name: Upload boot.img
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: boot-OSS-OPace3.img
         path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/boot.img
