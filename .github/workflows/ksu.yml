@@ -1,4 +1,4 @@
-name: OPlus Kernel
+name: OPlus NEXT Kernel
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v2
 
     - name: Configure Git
       run: |
@@ -30,7 +30,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 git curl
+        sudo apt-get install -y python3 git curl zip
 
     - name: Install repo tool
       run: |
@@ -58,7 +58,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
         curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
         cd KernelSU-Next
-        KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+        KSU_VERSION=$(( $(git rev-list --count HEAD) + 10200 ))
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
     - name: Add SUSFS
@@ -110,42 +110,45 @@ jobs:
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf ./AnyKernel3/.git
         cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image ./AnyKernel3/
+        cd AnyKernel3
+        zip -r9 ../AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip *
 
     - name: Upload AnyKernel3
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}
-        path: ./AnyKernel3/*
+        path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
 
     - name: Upload kernel Image
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: Image-OSS-${{ env.KSUVER }}
         path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image
 
     - name: Upload boot.img
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v2
       with:
         name: boot-OSS-OPace3.img
         path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/boot.img
 
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
+      uses: actions/create-release@v2
       env:
-       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-       tag_name: ${{ github.ref_name }} # 使用实际的标签名称
-       release_name: Release ${{ github.ref_name }}
-       draft: false
-       prerelease: false
-    
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+
     - name: Upload Release Assets
-      uses: actions/upload-release-asset@v1
+      uses: actions/upload-release-asset@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./AnyKernel3
+        asset_path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
         asset_name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
         asset_content_type: application/zip
