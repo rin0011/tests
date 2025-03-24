@@ -56,6 +56,7 @@ jobs:
         repo status
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
         git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
+        git clone https://github.com/rin0011/tests --depth=1
 
     - name: Setup build date
       id: date
@@ -75,12 +76,12 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../../kernel_patches/next/syscall_hooks.patch ./
+        cp ../../tests/001-lz4.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         patch -p1 -F 3 < syscall_hooks.patch
-        patch -p1 < ../../.repo/tests/001-lz4.patch
-        patch -p1 < $GITHUB_WORKSPACE/001-lz4.patch
+        patch -p1 < 001-lz4.patch
         
     - name: Build defconfig
       run: |
