@@ -147,7 +147,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ env.KSUVER }}
-        name: "Kernelsu-next"
+        name: "Kernelsu-next ${{ env.KSUVER }}"
         draft: false
         prerelease: ${{ contains(github.ref_name, 'rc') }}
         generate_release_notes: true
