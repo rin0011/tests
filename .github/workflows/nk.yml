@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -16,22 +14,23 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 git curl zip
+          sudo apt-get install -y git zip
 
-      - name: Generate patch
+      - name: Clone and generate patch
         run: |
-          # 克隆目标仓库
-          git clone https://github.com/ferstar/xiaomi_xaga_kernel
+          git clone https://github.com/ferstar/xiaomi_xaga_kernel --filter=blob:none
           cd xiaomi_xaga_kernel
-          # 生成指定提交的补丁
+          # 验证提交是否存在
+          if ! git cat-file -e aa2165cbb8e235becd5e3f2696b1d878b5e29010^{commit}; then
+            echo "Error: Commit not found!"
+            exit 1
+          fi
           git format-patch -1 aa2165cbb8e235becd5e3f2696b1d878b5e29010 -o ./patches/
-          # 压缩补丁文件
-          zip -r ../patches.zip ./patches/
-          # 将补丁文件移动到工作目录根目录
-          mv ../patches.zip $GITHUB_WORKSPACE/
+          zip -r patches.zip ./patches/
+          mv patches.zip $GITHUB_WORKSPACE/
 
       - name: Upload patch
         uses: actions/upload-artifact@v4
         with:
-          name: patches
+          name: kernel-patches
           path: ${{ github.workspace }}/patches.zip
