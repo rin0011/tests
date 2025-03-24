@@ -14,7 +14,6 @@ jobs:
     permissions:
       contents: write
       actions: read
-      checks: write
 
     steps:
     - name: Checkout code
@@ -147,9 +146,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref_name }}
-        name: "Kernel ${{ github.ref_name }}"
-        draft: true
+        tag_name: V${{ env.KSUVER }}
+        #name: "Kernel ${{ github.ref_name }}"
+        draft: false
         prerelease: ${{ contains(github.ref_name, 'rc') }}
         generate_release_notes: true
         body: |
