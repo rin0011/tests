@@ -77,11 +77,13 @@ jobs:
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../../kernel_patches/next/syscall_hooks.patch ./
         cp ../../tests/001-lz4.patch ./
+        cp ../../tests/0001-bbr3.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         patch -p1 -F 3 < syscall_hooks.patch
         patch -p1 -F 3 < 001-lz4.patch
+        patch -p1 -F 3 < 0001-bbr3.patch
         
     - name: Build defconfig
       run: |
