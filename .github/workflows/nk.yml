@@ -21,7 +21,7 @@ jobs:
       - name: Generate patch
         run: |
           # 克隆目标仓库
-          git clone https://github.com/ferstar/xiaomi_xaga_kernel --depth=1
+          git clone https://github.com/ferstar/xiaomi_xaga_kernel
           cd xiaomi_xaga_kernel
           # 生成指定提交的补丁
           git format-patch -1 aa2165cbb8e235becd5e3f2696b1d878b5e29010 -o ./patches/
