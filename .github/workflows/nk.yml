@@ -1,7 +1,8 @@
 name: CI
 
 on:
-  
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -19,17 +20,11 @@ jobs:
         run: |
           git clone https://github.com/ferstar/xiaomi_xaga_kernel --filter=blob:none
           cd xiaomi_xaga_kernel
-          # 验证提交是否存在
-          if ! git cat-file -e aa2165cbb8e235becd5e3f2696b1d878b5e29010^{commit}; then
-            echo "Error: Commit not found!"
-            exit 1
-          fi
-          git format-patch -1 aa2165cbb8e235becd5e3f2696b1d878b5e29010 -o ./patches/
-          zip -r patches.zip ./patches/
-          mv patches.zip $GITHUB_WORKSPACE/
+          git format-patch -1 aa2165cbb8e235becd5e3f2696b1d878b5e29010 -o ./patches/ 
+          mv patches $GITHUB_WORKSPACE/
 
       - name: Upload patch
         uses: actions/upload-artifact@v4
         with:
           name: kernel-patches
-          path: ${{ github.workspace }}/patches.zip
+          path: ${{ github.workspace }}/patches
