@@ -1,12 +1,19 @@
-name: MKSU Kernel
+name: OPlus lz4 Kernel
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'KSUN*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 2160
+    
+    permissions:
+      contents: write
+      actions: read
 
     steps:
     - name: Checkout code
@@ -14,8 +21,8 @@ jobs:
 
     - name: Configure Git
       run: |
-         git config --global user.name "GitHub Actions"
-         git config --global user.email "actions@github.com"
+           git config --global user.name "github-actions[bot]"
+           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Clean up disk space
       run: |
@@ -27,7 +34,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 git curl
+        sudo apt-get install -y python3 git curl zip
 
     - name: Install repo tool
       run: |
@@ -50,33 +57,37 @@ jobs:
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
         git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
 
+    - name: Setup build date
+      id: date
+      run: echo "current-date=$(date +'%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT    
+
+
     - name: Setup KernelSU
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
-        curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -s main
-        cd KernelSU
-        git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n
-        KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
+        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
+        cd KernelSU-Next
+        KSU_VERSION=$(( $(git rev-list --count HEAD) + 10200 ))
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-        sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
     - name: Add SUSFS
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
+        cp ../../kernel_patches/next/syscall_hooks.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
-        cp ../../kernel_patches/mksu_susfs.patch ./KernelSU/
-        cd KernelSU
-        patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-        patch -p1 < mksu_susfs.patch
-        cd ..
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
+        patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 < ../../.repo/tests/001-lz4.patch
         
     - name: Build defconfig
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
+        echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_WITH_KPOBES=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -85,7 +96,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -93,13 +104,12 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfigig
-        echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-
-        sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
-        sed -i 's/CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
-        sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
-
+        #echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+        # Add additional config setting
+        echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        
     - name: Build kernel
       run: |
         cd kernel_workspace
@@ -110,12 +120,14 @@ jobs:
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf ./AnyKernel3/.git
         cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image ./AnyKernel3/
+        cd AnyKernel3
+        zip -r9 ../AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip *
 
     - name: Upload AnyKernel3
       uses: actions/upload-artifact@v4
       with:
         name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}
-        path: ./AnyKernel3/*
+        path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
 
     - name: Upload kernel Image
       uses: actions/upload-artifact@v4
