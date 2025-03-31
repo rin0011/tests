@@ -74,12 +74,12 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../kernel_patches/next/syscall_hooks.patch ./
+        cp ../../kernel_patches/next/next_hooks.patch ./
         cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 -F 3 < next_hooks.patch
         patch -p1 < bbrv3-5.15+.patch
         
     - name: Build defconfig
