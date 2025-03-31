@@ -41,11 +41,8 @@ jobs:
         repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-        rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-        sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
         sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
-        sed -i '2s/check_defconfig//' ./kernel_platform/msm-kernel/build.config.gki
         repo status
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
         git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
@@ -66,12 +63,8 @@ jobs:
         cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        #cp ../../kernel_patches/KernelSU-Next-Implement-SUSFS-v1.5.5-Universal.patch ./KernelSU-Next/
-        #cd KernelSU-Next
-        #patch -p1 --forward < KernelSU-Next-Implement-SUSFS-v1.5.5-Universal.patch || true
-        #cd ..
         patch -p1 -F 3 < new_hooks.patch
-        patch -p1 -F 3 < bbrv3-5.15+.patch
+        patch -p1 < bbrv3-5.15+.patch
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         
     - name: Build defconfig
