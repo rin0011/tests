@@ -101,6 +101,7 @@ jobs:
         echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_DEFAULT_TCP_CONG="bbr"" >> ./common/arch/arm64/configs/gki_defconfig
         
     - name: Build kernel
       run: |
