@@ -74,13 +74,13 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../kernel_patches/next/next_hooks.patch ./
-        #cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
+        cp ../../kernel_patches/next/syscall_hooks.patch ./
+        cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 -F 3 < next_hooks.patch
-        #patch -p1 < bbrv3-5.15+.patch
+        patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 < bbrv3-5.15+.patch
         
     - name: Build defconfig
       run: |
@@ -107,7 +107,15 @@ jobs:
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
         #echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
         # Add additional config setting
-
+        echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
+        echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
         
     - name: Build kernel
       run: |
