@@ -50,14 +50,14 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
+        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
         cd KernelSU-Next
         KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         
     - name: Add SUSFS
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
+        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../../kernel_patches/next/syscall_hooks.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
