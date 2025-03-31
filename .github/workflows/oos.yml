@@ -70,8 +70,8 @@ jobs:
         #cd KernelSU-Next
         #patch -p1 --forward < KernelSU-Next-Implement-SUSFS-v1.5.5-Universal.patch || true
         #cd ..
-        patch -p1 < new_hooks.patch
-        patch -p1 < bbrv3-5.15+.patch
+        patch -p1 -F 3 < new_hooks.patch
+        patch -p1 -F 3 < bbrv3-5.15+.patch
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         
     - name: Build defconfig
@@ -102,6 +102,12 @@ jobs:
         echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_DEFAULT_TCP_CONG="bbr"" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
+        echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
         
     - name: Build kernel
       run: |
