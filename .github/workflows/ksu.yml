@@ -79,7 +79,7 @@ jobs:
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 < syscall_hooks.patch
+        patch -p1 -F 3 < syscall_hooks.patch
         patch -p1 < bbrv3-5.15+.patch
         
     - name: Build defconfig
@@ -106,11 +106,11 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
         #echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #Add additional config setting
+        # Add additional config setting
         echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_DEFAULT_TCP_CONG="bbr"" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_DEFAULT_TCP_CONG="bbr"" >> ./common/arch/arm64/configs/gki_defconfig
         
     - name: Build kernel
       run: |
