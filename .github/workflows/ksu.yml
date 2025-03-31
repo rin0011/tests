@@ -65,7 +65,7 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
-        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
+        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
         cd KernelSU-Next
         KSU_VERSION=$(( $(git rev-list --count HEAD) + 10200 ))
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
