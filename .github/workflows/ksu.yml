@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'KSUN*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
+      - 'v*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
 
 jobs:
   build:
@@ -66,8 +66,8 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
-        curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next-susfs-dev/kernel/setup.sh" | bash -s next-susfs-dev
-        cd KernelSU-Next
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
+        cd SukiSU-Ultra
         KSU_VERSION=$(( $(git rev-list --count HEAD) + 10200 ))
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
@@ -77,11 +77,13 @@ jobs:
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../../kernel_patches/next/syscall_hooks.patch ./
         cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
+        cp ../../kernel_patches/69_hide_stuff.patch ./
         cp ../../tests/001-lz4.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 -F 3 < 69_hide_stuff.patch
         patch -p1 < bbrv3-5.15+.patch
         patch -p1 -F 3 < 001-lz4.patch
         
@@ -90,8 +92,8 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
         echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_WITH_KPOBES=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_WITH_KPOBES=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -161,8 +163,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: KSUN${{ env.KSUVER }}
-        name: "Kernelsu-next ${{ env.KSUVER }}"
+        tag_name: v${{ env.KSUVER }}
+        name: "sukisu ${{ env.KSUVER }}"
         draft: false
         prerelease: ${{ contains(github.ref_name, 'rc') }}
         generate_release_notes: true
