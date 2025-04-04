@@ -61,8 +61,9 @@ jobs:
 
     - name: Setup build date
       id: date
-      run: echo "current-date=$(date +'%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT    
-
+      run: |
+       current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
+       echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
     - name: Setup KernelSU
       run: |
@@ -76,14 +77,14 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../kernel_patches/hooks/new_hooks.patch ./
+        cp ../../kernel_patches/hooks/ksu_hooks.patch ./
         cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
         cp ../../kernel_patches/69_hide_stuff.patch ./
         cp ../../tests/001-lz4.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 -F 3 < new_hooks.patch
+        patch -p1 -F 3 < ksu_hooks.patch
         patch -p1 -F 3 < 69_hide_stuff.patch
         patch -p1 < bbrv3-5.15+.patch
         patch -p1 -F 3 < 001-lz4.patch
