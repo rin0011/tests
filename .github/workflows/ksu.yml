@@ -93,9 +93,9 @@ jobs:
         patch -p1 -F 3 < new_hooks.patch
         patch -p1 -F 3 < 69_hide_stuff.patch
         patch -p1 < bbrv3-5.15+.patch
-        patch -p1 -F 3 < lz4kd.patch || true
-        #patch -p1 -F 3 < 001-lz4.patch
-        patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
+        #patch -p1 -F 3 < lz4kd.patch || true
+        patch -p1 -F 3 < 001-lz4.patch
+        #patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
         
         
     - name: Build defconfig
@@ -122,13 +122,13 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_ZRAM_WRITEBACK=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_ZRAM=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_ZSMALLOC=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_ZRAM_WRITEBACK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_ZRAM=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_ZSMALLOC=y" >> ./common/arch/arm64/configs/gki_defconfig
         # Add additional config setting
         echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
         echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
