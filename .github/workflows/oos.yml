@@ -157,7 +157,7 @@ jobs:
         cd kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/
         chmod +x patch_linux
         ./patch_linux
-        rm lmage
+        rm -f Image
         mv olmage Image
 
     - name: Make AnyKernel3
