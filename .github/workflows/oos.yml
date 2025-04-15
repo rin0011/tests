@@ -1,12 +1,19 @@
-name: OPlus OOS Kernel
+name: OPlus KPM Kernel
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 2160
+
+    permissions:
+      contents: write
+      actions: read
 
     steps:
     - name: Checkout code
@@ -14,8 +21,8 @@ jobs:
 
     - name: Configure Git
       run: |
-         git config --global user.name "GitHub Actions"
-         git config --global user.email "actions@github.com"
+           git config --global user.name "github-actions[bot]"
+           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
     - name: Clean up disk space
       run: |
@@ -27,7 +34,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3 git curl
+        sudo apt-get install -y python3 git curl zip
 
     - name: Install repo tool
       run: |
@@ -41,36 +48,64 @@ jobs:
         repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+        rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
+        sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
         sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
+        sed -i '2s/check_defconfig//' ./kernel_platform/msm-kernel/build.config.gki
         repo status
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
         git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
+        git clone https://github.com/rin0011/tests --depth=1
+        git clone https://github.com/ShirkNeko/SukiSU_patch.git
+
+    - name: Setup build date
+      id: date
+      run: |
+       current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
+       echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
-        curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/refs/heads/susfs-v1.5.5/kernel/setup.sh" | bash -s susfs-v1.5.5
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
         cd KernelSU
-        KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+        KSU_VERSION=$(( $(git rev-list --count HEAD) + 12606 ))
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
 
     - name: Add SUSFS
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../kernel_patches/hooks/new_hooks.patch ./
+        cp ../../SukiSU_patch/hooks/new_hooks.patch ./
         cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
+        cp ../../kernel_patches/69_hide_stuff.patch ./
+        cp ../../SukiSU_patch/other/lz4k_patch/5.15/lz4kd.patch ./
+        cp ../../tests/001-lz4.patch ./
+        cp ../../SukiSU_patch/other/0001-lz4-Update-to-version-1.9.4.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        patch -p1 -F 3 < new_hooks.patch
-        patch -p1 < bbrv3-5.15+.patch
+        # zram lz4kd
+        cp -r ../../SukiSU_patch/other/lz4k/include/linux/* ./include/linux
+        cp -r ../../SukiSU_patch/other/lz4k/lib/* ./lib
+        cp -r ../../SukiSU_patch/other/lz4k/crypto/* ./crypto
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
+        patch -p1 -F 3 < new_hooks.patch
+        patch -p1 -F 3 < 69_hide_stuff.patch
+        patch -p1 < bbrv3-5.15+.patch
+        #patch -p1 -F 3 < lz4kd.patch || true
+        patch -p1 -F 3 < 001-lz4.patch
+        #patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
+        
         
     - name: Build defconfig
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
+        echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_WITH_KPOBES=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -79,7 +114,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -87,28 +122,46 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfigig
-        echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        
-        echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_DEFAULT_TCP_CONG="bbr"" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_ZRAM_WRITEBACK=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_ZRAM=y" >> ./common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_ZSMALLOC=y" >> ./common/arch/arm64/configs/gki_defconfig
+        # Add additional config setting
         echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
         echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo 'CONFIG_DEFAULT_TCP_CONG="bbr"' >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_DEFAULT_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_IP_ROUTE_CLASSID=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_DEFAULT_CUBIC=n" >> ./common/arch/arm64/configs/gki_defconfig
         
     - name: Build kernel
       run: |
         cd kernel_workspace
         LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
 
-    - name: Make AnyKernel3
+    - name: add kpm
       run: |
+        cd kernel_workspace
+        cp ./SukiSU_patch/kpm/patch_linux ./kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/
+        cd kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/
+        chmod +x patch_linux
+        ./patch_linux
+        rm lmage
+        mv olmage Image
+
+    - name: Make AnyKernel3
+      run: | 
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf ./AnyKernel3/.git
         cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image ./AnyKernel3/
@@ -117,7 +170,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}
-        path: ./AnyKernel3/*
+        path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
 
     - name: Upload kernel Image
       uses: actions/upload-artifact@v4
