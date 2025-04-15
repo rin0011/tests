@@ -170,7 +170,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}
-        path: ./AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
+        path: ./AnyKernel3/*
 
     - name: Upload kernel Image
       uses: actions/upload-artifact@v4
