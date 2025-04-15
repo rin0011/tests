@@ -158,7 +158,7 @@ jobs:
         chmod +x patch_linux
         ./patch_linux
         rm -f Image
-        mv olmage Image
+        mv oImage Image
 
     - name: Make AnyKernel3
       run: | 
