@@ -78,22 +78,14 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
         cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../../SukiSU_patch/hooks/syscall_hooks.patch ./
-        cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
         cp ../../kernel_patches/69_hide_stuff.patch ./
-        cp ../../SukiSU_patch/other/lz4k_patch/5.15/lz4kd.patch ./
         cp ../../tests/001-lz4.patch ./
         cp ../../SukiSU_patch/other/0001-lz4-Update-to-version-1.9.4.patch ./
         cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        # zram lz4kd
-        cp -r ../../SukiSU_patch/other/lz4k/include/linux/* ./include/linux
-        cp -r ../../SukiSU_patch/other/lz4k/lib/* ./lib
-        cp -r ../../SukiSU_patch/other/lz4k/crypto/* ./crypto
         patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
         patch -p1 -F 3 < syscall_hooks.patch
         patch -p1 -F 3 < 69_hide_stuff.patch
-        patch -p1 < bbrv3-5.15+.patch
-        #patch -p1 -F 3 < lz4kd.patch || true
         patch -p1 -F 3 < 001-lz4.patch
         #patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
         
@@ -122,27 +114,6 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_ZRAM_WRITEBACK=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_ZRAM=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_ZSMALLOC=y" >> ./common/arch/arm64/configs/gki_defconfig
-        # Add additional config setting
-        echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
-        echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo 'CONFIG_DEFAULT_TCP_CONG="bbr"' >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_DEFAULT_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP_ROUTE_CLASSID=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_DEFAULT_CUBIC=n" >> ./common/arch/arm64/configs/gki_defconfig
         
     - name: Build kernel
       run: |
