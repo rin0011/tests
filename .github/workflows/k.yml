@@ -41,7 +41,7 @@ jobs:
 
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
-        git clone https://github.com/WildPlusKernel/kernel_patches.git
+        #git clone https://github.com/WildPlusKernel/kernel_patches.git
         
     - name: Setup KernelSU
       run: |
@@ -56,8 +56,6 @@ jobs:
         cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
         cp ../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        cp ../kernel_patches/bbr/bbrv3-5.15+.patch ./
-        patch -p1 --forward < bbrv3-5.15+.patch
         patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
 
     - name: Build kernel
