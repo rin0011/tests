@@ -1,4 +1,4 @@
-name: Build KSUN-AOSP
+name: Build SukiSU-AOSP
 
 on:
   workflow_dispatch:
@@ -47,9 +47,8 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        #curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
-        KSU_VERSION=$(cd KernelSU-Next && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 10200)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
         
     - name: Setup susfs
@@ -59,9 +58,6 @@ jobs:
         cp ../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
-        cd KernelSU-Next
-        cp ../../tests/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch ./
-        patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
 
     - name: Build kernel
       run: |
