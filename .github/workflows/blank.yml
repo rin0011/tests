@@ -35,7 +35,7 @@ jobs:
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --recursive https://github.com/rin0011/kernel_oneplus_sm8550 -b fifteen android-kernel --depth=1
+        git clone --recursive https://github.com/inferno0230/android_kernel_oneplus_sm8550.git -b lineage-22.2 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
 
