@@ -42,7 +42,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
         #git clone https://github.com/WildPlusKernel/kernel_patches.git
-        git clone git@github.com:ShirkNeko/SukiSU_patch.git
+        git clone https://github.com/ShirkNeko/SukiSU_patch.git
         git clone https://github.com/rin0011/tests.git
         
     - name: Setup KernelSU
