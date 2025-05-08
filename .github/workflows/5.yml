@@ -122,7 +122,7 @@ jobs:
     - name: Build kernel
       run: |
         cd kernel_workspace
-        LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh sun perf
+        LTO=thin SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0 ./kernel_platform/oplus/build/oplus_build_kernel.sh sun perf
 
     - name: Make AnyKernel3
       run: |
@@ -140,10 +140,10 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Image-OSS-${{ env.KSUVER }}
-        path: kernel_workspace/kernel_platform/out/msm-kernel-sun-perf/dist/Image
+        path: kernel_workspace/out/dist/Image
 
     - name: Upload boot.img
       uses: actions/upload-artifact@v4
       with:
         name: boot-OSS-OPace5.img
-        path: kernel_workspace/kernel_platform/out/msm-kernel-sun-perf/dist/boot.img
+        path: kernel_workspace/out/dist/boot.img
