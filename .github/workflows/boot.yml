@@ -1,16 +1,16 @@
-name: Repack Boot Image with Custom Kernel
+name: Repack Boot Image
 
 on:
   workflow_dispatch:
     inputs:
-      boot_img_path:
-        description: 'Path to original boot.img'
+      boot_img_url:
+        description: 'URL of original boot.img'
         required: true
-        default: 'boot.img'
-      kernel_img_path:
-        description: 'Path to new kernel Image'
+        default: 'https://example.com/path/to/boot.img'
+      kernel_img_url:
+        description: 'URL of new kernel Image'
         required: true
-        default: 'Image'
+        default: 'https://example.com/path/to/Image'
 
 jobs:
   repack_boot:
@@ -18,16 +18,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Setup Environment
+      - name: Setup Workspace
         run: |
+          mkdir -p ${{ github.workspace }}/downloads
           mkdir -p ${{ github.workspace }}/output
 
       - name: Download Magisk
-        run: |
-          wget -q https://github.com/topjohnwu/Magisk/releases/latest/download/magisk.apk
+        run: wget -q https://github.com/topjohnwu/Magisk/releases/latest/download/magisk.apk
 
       - name: Extract magiskboot
         run: |
@@ -35,25 +33,37 @@ jobs:
           mv libmagiskboot.so magiskboot
           chmod +x magiskboot
 
+      - name: Download Boot Image
+        run: wget -O ${{ github.workspace }}/downloads/boot.img "${{ inputs.boot_img_url }}"
+
+      - name: Download Kernel Image
+        run: wget -O ${{ github.workspace }}/downloads/Image "${{ inputs.kernel_img_url }}"
+
+      - name: Validate Files
+        run: |
+          file ${{ github.workspace }}/downloads/boot.img
+          file ${{ github.workspace }}/downloads/Image
+          ls -lh ${{ github.workspace }}/downloads/
+
       - name: Unpack Boot Image
         run: |
-          ./magiskboot unpack "${{ github.workspace }}/${{ inputs.boot_img_path }}"
+          ./magiskboot unpack ${{ github.workspace }}/downloads/boot.img
           echo "Unpacked boot image contents:"
           ls -l split_img/
 
       - name: Replace Kernel
         run: |
-          cp "${{ github.workspace }}/${{ inputs.kernel_img_path }}" split_img/kernel
-          echo "Kernel replacement complete"
+          cp ${{ github.workspace }}/downloads/Image split_img/kernel
+          echo "New kernel info:"
           md5sum split_img/kernel
 
       - name: Repack Boot Image
         run: |
-          ./magiskboot repack "${{ github.workspace }}/${{ inputs.boot_img_path }}"
-          mv new-boot.img ${{ github.workspace }}/output/repacked_boot.img
+          ./magiskboot repack ${{ github.workspace }}/downloads/boot.img
+          mv new-boot.img ${{ github.workspace }}/output/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: modified_boot
-          path: ${{ github.workspace }}/output/repacked_boot.img
+          name: custom_boot_image
+          path: ${{ github.workspace }}/output/new-boot.img
