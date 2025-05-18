@@ -1,0 +1,59 @@
+name: Repack Boot Image with Custom Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      boot_img_path:
+        description: 'Path to original boot.img'
+        required: true
+        default: 'boot.img'
+      kernel_img_path:
+        description: 'Path to new kernel Image'
+        required: true
+        default: 'Image'
+
+jobs:
+  repack_boot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Environment
+        run: |
+          mkdir -p ${{ github.workspace }}/output
+
+      - name: Download Magisk
+        run: |
+          wget -q https://github.com/topjohnwu/Magisk/releases/latest/download/magisk.apk
+
+      - name: Extract magiskboot
+        run: |
+          unzip -j magisk.apk 'lib/x86_64/libmagiskboot.so' -d .
+          mv libmagiskboot.so magiskboot
+          chmod +x magiskboot
+
+      - name: Unpack Boot Image
+        run: |
+          ./magiskboot unpack "${{ github.workspace }}/${{ inputs.boot_img_path }}"
+          echo "Unpacked boot image contents:"
+          ls -l split_img/
+
+      - name: Replace Kernel
+        run: |
+          cp "${{ github.workspace }}/${{ inputs.kernel_img_path }}" split_img/kernel
+          echo "Kernel replacement complete"
+          md5sum split_img/kernel
+
+      - name: Repack Boot Image
+        run: |
+          ./magiskboot repack "${{ github.workspace }}/${{ inputs.boot_img_path }}"
+          mv new-boot.img ${{ github.workspace }}/output/repacked_boot.img
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: modified_boot
+          path: ${{ github.workspace }}/output/repacked_boot.img
