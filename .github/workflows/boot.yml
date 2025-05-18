@@ -1,4 +1,4 @@
-name: Repack Boot Image
+name: Repack Boot Image via URL
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4  # 更新到v4版本
 
       - name: Setup Workspace
         run: |
@@ -25,45 +25,44 @@ jobs:
           mkdir -p ${{ github.workspace }}/output
 
       - name: Download Magisk
-        run: wget -q https://github.com/topjohnwu/Magisk/releases/latest/download/magisk.apk
+        run: |
+          wget -q https://github.com/topjohnwu/Magisk/releases/latest/download/magisk.apk
+          ls -lh magisk.apk
 
       - name: Extract magiskboot
         run: |
           unzip -j magisk.apk 'lib/x86_64/libmagiskboot.so' -d .
           mv libmagiskboot.so magiskboot
           chmod +x magiskboot
+          ./magiskboot --version
 
       - name: Download Boot Image
-        run: wget -O ${{ github.workspace }}/downloads/boot.img "${{ inputs.boot_img_url }}"
+        run: |
+          wget -O ${{ github.workspace }}/downloads/boot.img "${{ github.event.inputs.boot_img_url }}"
+          file ${{ github.workspace }}/downloads/boot.img
 
       - name: Download Kernel Image
-        run: wget -O ${{ github.workspace }}/downloads/Image "${{ inputs.kernel_img_url }}"
-
-      - name: Validate Files
         run: |
-          file ${{ github.workspace }}/downloads/boot.img
+          wget -O ${{ github.workspace }}/downloads/Image "${{ github.event.inputs.kernel_img_url }}"
           file ${{ github.workspace }}/downloads/Image
-          ls -lh ${{ github.workspace }}/downloads/
 
       - name: Unpack Boot Image
         run: |
           ./magiskboot unpack ${{ github.workspace }}/downloads/boot.img
-          echo "Unpacked boot image contents:"
           ls -l split_img/
 
       - name: Replace Kernel
         run: |
-          cp ${{ github.workspace }}/downloads/Image split_img/kernel
-          echo "New kernel info:"
+          cp -v ${{ github.workspace }}/downloads/Image split_img/kernel
           md5sum split_img/kernel
 
       - name: Repack Boot Image
         run: |
           ./magiskboot repack ${{ github.workspace }}/downloads/boot.img
-          mv new-boot.img ${{ github.workspace }}/output/
+          mv -v new-boot.img ${{ github.workspace }}/output/
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # 必须更新到v4版本
         with:
           name: custom_boot_image
           path: ${{ github.workspace }}/output/new-boot.img
