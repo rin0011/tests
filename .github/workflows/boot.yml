@@ -6,63 +6,73 @@ on:
       boot_img_url:
         description: 'URL of original boot.img'
         required: true
-        default: 'https://example.com/path/to/boot.img'
+        default: 'https://example.com/boot.img'
       kernel_img_url:
         description: 'URL of new kernel Image'
         required: true
-        default: 'https://example.com/path/to/Image'
+        default: 'https://example.com/Image'
 
 jobs:
   repack_boot:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4  # 更新到v4版本
+        uses: actions/checkout@v4
 
       - name: Setup Workspace
         run: |
           mkdir -p ${{ github.workspace }}/downloads
           mkdir -p ${{ github.workspace }}/output
 
-      - name: Download Magisk
+      - name: Download Magisk (Fixed URL)
         run: |
-          wget -q https://objects.githubusercontent.com/github-production-release-asset-2e65be/67702184/005b3804-00df-43f8-87af-1c8fba10554b?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=releaseassetproduction%2F20250518%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250518T155551Z&X-Amz-Expires=300&X-Amz-Signature=f35281719f9c5e1d625b4998f561543f4e5c4e084935f275e9856fbb5ac8052b&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3DMagisk-v29.0.apk&response-content-type=application%2Fvnd.android.package-archive
-          ls -lh magisk.apk
+          # 使用稳定版下载链接
+          MAGISK_VERSION="29.0"
+          wget -q --show-progress "https://github.com/topjohnwu/Magisk/releases/download/v${MAGISK_VERSION}/Magisk-v${MAGISK_VERSION}.apk" -O magisk.apk
+          [ -f magisk.apk ] || { echo "Magisk download failed"; exit 1; }
+          echo "Downloaded Magisk size: $(du -h magisk.apk | cut -f1)"
 
       - name: Extract magiskboot
         run: |
           unzip -j magisk.apk 'lib/x86_64/libmagiskboot.so' -d .
           mv libmagiskboot.so magiskboot
           chmod +x magiskboot
-          ./magiskboot --version
+          ./magiskboot --version || { echo "magiskboot提取失败"; exit 1; }
 
       - name: Download Boot Image
         run: |
-          wget -O ${{ github.workspace }}/downloads/boot.img "${{ github.event.inputs.boot_img_url }}"
-          file ${{ github.workspace }}/downloads/boot.img
+          wget --tries=3 --timeout=20 -q --show-progress -O "${{ github.workspace }}/downloads/boot.img" "${{ github.event.inputs.boot_img_url }}"
+          [ -s "${{ github.workspace }}/downloads/boot.img" ] || { echo "Boot镜像下载失败"; exit 1; }
+          file "${{ github.workspace }}/downloads/boot.img" | grep -q "Android bootimg" || { echo "无效的boot镜像文件"; exit 1; }
 
       - name: Download Kernel Image
         run: |
-          wget -O ${{ github.workspace }}/downloads/Image "${{ github.event.inputs.kernel_img_url }}"
-          file ${{ github.workspace }}/downloads/Image
+          wget --tries=3 --timeout=20 -q --show-progress -O "${{ github.workspace }}/downloads/Image" "${{ github.event.inputs.kernel_img_url }}"
+          [ -s "${{ github.workspace }}/downloads/Image" ] || { echo "内核下载失败"; exit 1; }
+          file "${{ github.workspace }}/downloads/Image" | grep -q "Linux kernel" || { echo "无效的内核文件"; exit 1; }
 
       - name: Unpack Boot Image
         run: |
-          ./magiskboot unpack ${{ github.workspace }}/downloads/boot.img
-          ls -l split_img/
+          ./magiskboot unpack "${{ github.workspace }}/downloads/boot.img"
+          [ -f split_img/kernel ] || { echo "解包失败，未找到kernel文件"; exit 1; }
+          echo "原内核信息："
+          md5sum split_img/kernel
 
       - name: Replace Kernel
         run: |
-          cp -v ${{ github.workspace }}/downloads/Image split_img/kernel
+          cp -v "${{ github.workspace }}/downloads/Image" split_img/kernel
+          echo "新内核校验："
+          file split_img/kernel
           md5sum split_img/kernel
 
       - name: Repack Boot Image
         run: |
-          ./magiskboot repack ${{ github.workspace }}/downloads/boot.img
-          mv -v new-boot.img ${{ github.workspace }}/output/
+          ./magiskboot repack "${{ github.workspace }}/downloads/boot.img"
+          [ -f new-boot.img ] || { echo "重新打包失败"; exit 1; }
+          mv -v new-boot.img "${{ github.workspace }}/output/repacked_boot.img"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: custom_boot_image
-          path: ${{ github.workspace }}/output/new-boot.img
+          path: ${{ github.workspace }}/output/repacked_boot.img
