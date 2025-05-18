@@ -26,7 +26,7 @@ jobs:
 
       - name: Download Magisk
         run: |
-          wget -q https://github.com/topjohnwu/Magisk/releases/latest/download/magisk.apk
+          wget -q https://objects.githubusercontent.com/github-production-release-asset-2e65be/67702184/005b3804-00df-43f8-87af-1c8fba10554b?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=releaseassetproduction%2F20250518%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250518T155551Z&X-Amz-Expires=300&X-Amz-Signature=f35281719f9c5e1d625b4998f561543f4e5c4e084935f275e9856fbb5ac8052b&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3DMagisk-v29.0.apk&response-content-type=application%2Fvnd.android.package-archive
           ls -lh magisk.apk
 
       - name: Extract magiskboot
@@ -62,7 +62,7 @@ jobs:
           mv -v new-boot.img ${{ github.workspace }}/output/
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4  # 必须更新到v4版本
+        uses: actions/upload-artifact@v4
         with:
           name: custom_boot_image
           path: ${{ github.workspace }}/output/new-boot.img
