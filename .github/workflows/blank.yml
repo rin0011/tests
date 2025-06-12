@@ -47,12 +47,12 @@ jobs:
     - name: Download kernel source
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --recursive https://github.com/rin0011/kernel_oneplus_sm8550 -b fifteen android-kernel --depth=1
+        git clone --recursive https://github.com/brokestar233/android_kernel_common_oneplus_sm8750 -b v3 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
 
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15
+        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
         #git clone https://github.com/WildPlusKernel/kernel_patches.git
         git clone https://github.com/ShirkNeko/SukiSU_patch.git
         git clone https://github.com/rin0011/tests.git
@@ -61,17 +61,17 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
-        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count HEAD) + 17070)
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10606)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
         
     - name: Setup susfs
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
+        cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
         cp ../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
-        patch -p1 -F 3 < 50_add_susfs_in_gki-android13-5.15.patch
+        patch -p1 -F 3 < 50_add_susfs_in_gki-android15-6.6.patch
         patch -p1 -F 3 < syscall_hooks.patch
 
     - name: Build kernel
@@ -87,7 +87,7 @@ jobs:
         AR_CMD="ARCH=${ARCH} SUBARCH=${SUBARCH} HEADER_ARCH=${HEADER_ARCH}"
         BA_CMD="CC=clang CXX=clang++"
         EX_CMD="LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LLVM=1 LLVM_IAS=1"
-        DEFCONFIG="gki_defconfig vendor/kalama_GKI.config vendor/oplus/kalama_GKI.config vendor/debugfs.config vendor/oplus/aston.config"
+        DEFCONFIG="gki_defconfig all"
         make O=out $AR_CMD $BA_CMD $EX_CMD $DEFCONFIG
         scripts/config --file out/.config -e LTO_CLANG -d LTO_NONE -e LTO_CLANG_THIN -d LTO_CLANG_FULL -e THINLTO
         make -j$(nproc --all) O=out $AR_CMD $BA_CMD $EX_CMD
