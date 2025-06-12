@@ -99,15 +99,9 @@ jobs:
         export HEADER_ARCH=arm64
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
         export KBUILD_BUILD_HOST=Github-Action
-        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
-        
-        # 启用ccache
-        export CCACHE_BASEDIR=$GITHUB_WORKSPACE
-        export CC="ccache clang"
-        export CXX="ccache clang++"
-        
+        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
         AR_CMD="ARCH=${ARCH} SUBARCH=${SUBARCH} HEADER_ARCH=${HEADER_ARCH}"
-        BA_CMD="CC=${CC} CXX=${CXX}"
+        BA_CMD="CC=ccache clang CXX=ccache clang++"
         EX_CMD="LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LLVM=1 LLVM_IAS=1"
         DEFCONFIG="gki_defconfig all"
         
