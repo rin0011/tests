@@ -101,7 +101,9 @@ jobs:
 
     - name: GKI patch
       run: |
-        
+        git clone https://github.com/HanKuCha/sched_ext.git
+        cp -r ./sched_ext/* ./android-kernel/kernel/sched
+        rm -rf ./sched_ext/.git
 
     - name: Build kernel
       run: |
