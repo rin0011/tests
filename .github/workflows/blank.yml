@@ -101,6 +101,7 @@ jobs:
 
     - name: sched_ext
       run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/
         git clone https://github.com/HanKuCha/sched_ext.git
         cp -r ./sched_ext/* ./android-kernel/kernel/sched
         rm -rf ./sched_ext/.git
