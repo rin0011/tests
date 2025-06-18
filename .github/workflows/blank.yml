@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Set swap to 10G
       uses: pierotofy/set-swap-space@master
       with:
@@ -28,7 +28,7 @@ jobs:
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole rustc
+        sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
         
         # 配置ccache
@@ -37,7 +37,7 @@ jobs:
         ccache --set-config=cache_dir=$CCACHE_DIR
         ccache -z  # 清空统计
 
-    # 新增ccache缓存
+    # ccache缓存
     - name: Cache ccache
       uses: actions/cache@v4
       with:
@@ -90,21 +90,94 @@ jobs:
         sed -i 's/-32,12 +32,38/-32,11 +32,37/g' 50_add_susfs_in_gki-android15-6.6.patch
         sed -i '/#include <trace\/hooks\/fs.h>/d' 50_add_susfs_in_gki-android15-6.6.patch
 
-        patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+        patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch
         patch -p1 -F 3 < syscall_hooks.patch
 
-    - name: GKI patch
+    - name: Apply HMBird GKI patch
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
-        wget https://raw.githubusercontent.com/showdo/build_oneplus_sm8750/main/hmbird_patch.c
-        echo "obj-y += hmbird_patch.o" >> Makefile
-
-    - name: sched_ext
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/
-        git clone https://github.com/HanKuCha/sched_ext.git
-        cp -r ./sched_ext/* ./android-kernel/kernel/sched
-        rm -rf ./sched_ext/.git
+        cat << 'EOF' > hmbird_patch.c
+        #include <linux/init.h>
+        #include <linux/module.h>
+        #include <linux/of.h>
+        #include <linux/slab.h>
+        #include <linux/string.h>
+        #include <linux/printk.h>  // 添加printk头文件
+        
+        static int __init hmbird_patch_init(void)
+        {
+            struct device_node *ver_np;
+            const char *type;
+            int ret;
+        
+            ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
+            if (!ver_np) {
+                 pr_info("hmbird_patch: version_type node not found\n");
+                 return 0;
+            }
+        
+            ret = of_property_read_string(ver_np, "type", &type);
+            if (ret) {
+                 pr_info("hmbird_patch: type property not found\n");
+                 of_node_put(ver_np);
+                 return 0;
+            }
+        
+            if (strcmp(type, "HMBIRD_OGKI") != 0) {  // 修正字符串比较
+                 of_node_put(ver_np);
+                 return 0;
+            }
+        
+            struct property *prop = of_find_property(ver_np, "type", NULL);
+            if (prop) {
+                 struct property *new_prop = kmalloc(sizeof(*prop), GFP_KERNEL);
+                 if (!new_prop) {
+                      pr_err("hmbird_patch: kmalloc for new_prop failed\n");
+                      of_node_put(ver_np);
+                      return -ENOMEM;
+                 }
+                 memcpy(new_prop, prop, sizeof(*prop));
+                 new_prop->value = kstrdup("HMBIRD_GKI", GFP_KERNEL);  // 使用kstrdup更安全
+                 if (!new_prop->value) {
+                      pr_err("hmbird_patch: kmalloc for new_prop->value failed\n");
+                      kfree(new_prop);
+                      of_node_put(ver_np);
+                      return -ENOMEM;
+                 }
+                 new_prop->length = strlen("HMBIRD_GKI") + 1;
+        
+                 if (of_remove_property(ver_np, prop)) {
+                      pr_err("hmbird_patch: of_remove_property failed\n");
+                      kfree(new_prop->value);
+                      kfree(new_prop);
+                      of_node_put(ver_np);
+                      return -EINVAL;
+                 }
+                 if (of_add_property(ver_np, new_prop)) {
+                      pr_err("hmbird_patch: of_add_property failed\n");
+                      kfree(new_prop->value);
+                      kfree(new_prop);
+                      of_node_put(ver_np);
+                      return -EINVAL;
+                 }
+                 pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
+            }
+            else {
+                pr_info("hmbird_patch: type property structure not found\n");
+            }
+            of_node_put(ver_np);
+            return 0;
+        }
+        early_initcall(hmbird_patch_init);
+        MODULE_LICENSE("GPL");
+        MODULE_AUTHOR("reigadegr");
+        MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
+        EOF
+        
+        # 添加到Makefile
+        if ! grep -q "hmbird_patch.o" Makefile; then
+            echo "obj-y += hmbird_patch.o" >> Makefile
+        fi
 
     - name: Build kernel
       run: |
@@ -116,6 +189,7 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
+        
         AR_CMD="ARCH=${ARCH} SUBARCH=${SUBARCH} HEADER_ARCH=${HEADER_ARCH}"
         BA_CMD="CC=clang CXX=clang++"
         EX_CMD="LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LLVM=1 LLVM_IAS=1"
