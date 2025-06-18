@@ -31,11 +31,32 @@ jobs:
         sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
         
+        # 创建ccache目录
+        mkdir -p ${{ env.CCACHE_DIR }}
+        
         # 配置ccache
-        sudo /usr/sbin/update-ccache-symlinks
-        echo "/usr/lib/ccache" >> $GITHUB_PATH
-        ccache --set-config=cache_dir=$CCACHE_DIR
-        ccache -z  # 清空统计
+        ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
+        ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
+        ccache --set-config=compression=true
+        ccache --set-config=compression_level=6
+        ccache --set-config=debug=true
+        ccache --set-config=hash_dir=false  # 对CI环境很重要
+        ccache --set-config=sloppiness=file_macro,locale,time_macros
+        
+        # 显示初始配置
+        ccache --show-config
+        ccache --show-stats
+        ccache -z  # 重置统计
+
+    # 缓存ccache目录
+    - name: Cache ccache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
+        restore-keys: |
+          ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
+          ccache-${{ runner.os }}-
 
     # ccache缓存
     - name: Cache ccache
@@ -182,6 +203,18 @@ jobs:
     - name: Build kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        
+        # 配置ccache环境变量
+        export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+        export CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
+        export CCACHE_CPP2=yes
+        export CCACHE_NOHASHDIR=yes
+        
+        # 设置编译器前缀
+        export CC="ccache clang"
+        export CXX="ccache clang++"
+        
+        # 构建命令
         LTO=thin
         export ARCH=arm64
         export SUBARCH=arm64
@@ -191,16 +224,13 @@ jobs:
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
         
         AR_CMD="ARCH=${ARCH} SUBARCH=${SUBARCH} HEADER_ARCH=${HEADER_ARCH}"
-        BA_CMD="CC=clang CXX=clang++"
+        BA_CMD="CC=${CC} CXX=${CXX}"
         EX_CMD="LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LLVM=1 LLVM_IAS=1"
         DEFCONFIG="gki_defconfig all"
         
         make O=out $AR_CMD $BA_CMD $EX_CMD $DEFCONFIG
         scripts/config --file out/.config -e LTO_CLANG -d LTO_NONE -e LTO_CLANG_THIN -d LTO_CLANG_FULL -e THINLTO
         make -j$(nproc --all) O=out $AR_CMD $BA_CMD $EX_CMD
-        
-        # 显示ccache统计
-        ccache -s
     
     - name: Check kernel output files
       run: |
