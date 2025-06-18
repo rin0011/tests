@@ -28,7 +28,7 @@ jobs:
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make
+        sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make sudo apt install pahole rustc
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
         
         # 配置ccache
@@ -87,6 +87,9 @@ jobs:
         cp ../susfs4ksu/kernel_patches/fs/* ./fs/
         cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+        sed -i 's/-32,12 +32,38/-32,11 +32,37/g' 50_add_susfs_in_gki-android15-6.6.patch
+        sed -i '/#include <trace\/hooks\/fs.h>/d' 50_add_susfs_in_gki-android15-6.6.patch
+
         patch -p1 -F 3 < 50_add_susfs_in_gki-android15-6.6.patch
         patch -p1 -F 3 < syscall_hooks.patch
 
