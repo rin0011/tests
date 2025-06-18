@@ -76,7 +76,7 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
         KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10606)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
         
@@ -99,7 +99,7 @@ jobs:
         wget https://raw.githubusercontent.com/showdo/build_oneplus_sm8750/main/hmbird_patch.c
         echo "obj-y += hmbird_patch.o" >> Makefile
 
-    - name: GKI patch
+    - name: sched_ext
       run: |
         git clone https://github.com/HanKuCha/sched_ext.git
         cp -r ./sched_ext/* ./android-kernel/kernel/sched
