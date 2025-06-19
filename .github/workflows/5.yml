@@ -457,17 +457,17 @@ jobs:
       - name: Repack kernel to boot image
         if: env.CHECK_IMAGE == 'true'
         run: |
-          cd $GITHUB_WORKSPACE
+          cd "$GITHUB_WORKSPACE"
           
           # 检查 magiskboot 工具
           if [ ! -f "$MAGISKBOOT_PATH" ]; then
-            echo "::error::magiskboot tool not found!"
+            echo "::error::magiskboot tool not found at $MAGISKBOOT_PATH"
             exit 1
           fi
           
           # 检查原始 boot.img
           if [ ! -f "$BOOT_IMG_PATH" ]; then
-            echo "::error::Original boot.img not found!"
+            echo "::error::Original boot.img not found at $BOOT_IMG_PATH"
             exit 1
           fi
           
@@ -475,8 +475,11 @@ jobs:
           mkdir -p repack_workdir
           cd repack_workdir
           
+          # 复制原始 boot.img 到当前目录
+          cp "$BOOT_IMG_PATH" ./boot.img
+          
           # 解包原始 boot.img
-          "$MAGISKBOOT_PATH" unpack " $BOOT_IMG_PATH"
+          "$MAGISKBOOT_PATH" unpack ./boot.img
           
           # 检查是否解包成功
           if [ ! -f "kernel" ]; then
@@ -490,7 +493,7 @@ jobs:
           cp "../kernel_workspace/android-kernel/out/arch/arm64/boot/Image" kernel
           
           # 重新打包 boot.img
-          "$MAGISKBOOT_PATH" repack "../$BOOT_IMG_PATH"
+          "$MAGISKBOOT_PATH" repack ./boot.img
           
           # 检查是否打包成功
           if [ ! -f "new-boot.img" ]; then
@@ -499,9 +502,9 @@ jobs:
           fi
           
           # 重命名输出文件
-          mv new-boot.img "../boot-${{ env.KSUVER }}.img"
+          mv new-boot.img "../boot-${KSUVER}.img"
           cd ..
-          echo "REPACKED_BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot-${{ env.KSUVER }}.img" >> $GITHUB_ENV
+          echo "REPACKED_BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot-${KSUVER}.img" >> $GITHUB_ENV
 
       - name: Upload artifacts
         if: env.CHECK_IMAGE == 'true'
