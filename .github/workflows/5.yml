@@ -205,7 +205,7 @@ jobs:
                       kfree(new_prop->value);
                       kfree(new_prop);
                       of_node_put(ver_np);
-                      return -EInVAL;
+                      return -EINVAL;
                  }
                  pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
             }
