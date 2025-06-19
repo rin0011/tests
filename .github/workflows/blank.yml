@@ -75,7 +75,7 @@ jobs:
         DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"
         echo "下载链接: $DOWNLOAD_URL"
         
-        aria2c -x16 -s16 -j16 -k1M --file-allocation=falloc --retry-wait=5 -m0 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
+        aria2c -x16 -s16 -j16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
         
         if [ ! -f "${CLANG_VERSION}.tar.gz" ]; then
             echo "错误: 下载失败！"
@@ -233,6 +233,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
+        sudo sed -i 's/check_defconfig//' ./build.config.gki
 
     - name: Build kernel with detailed logging
       run: |
