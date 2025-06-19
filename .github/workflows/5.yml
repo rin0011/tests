@@ -150,6 +150,7 @@ jobs:
           #include <linux/slab.h>
           #include <linux/string.h>
           #include <linux/printk.h>
+          #include <linux/errno.h>
           
           static int __init hmbird_patch_init(void)
           {
@@ -205,7 +206,7 @@ jobs:
                         kfree(new_prop->value);
                         kfree(new_prop);
                         of_node_put(ver_np);
-                        return -EInVAL;
+                        return -EINVAL;
                    }
                    pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
               }
@@ -224,7 +225,7 @@ jobs:
           if ! grep -q "hmbird_patch.o" Makefile; then
               echo "obj-y += hmbird_patch.o" >> Makefile
           fi
-      
+          
       - name: scx
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
