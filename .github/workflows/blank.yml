@@ -109,7 +109,7 @@ jobs:
         KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10606)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
         
-    - name: Setup susfs (修复头文件和变量问题)
+    - name: Setup susfs
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
@@ -210,7 +210,14 @@ jobs:
         if ! grep -q "hmbird_patch.o" Makefile; then
             echo "obj-y += hmbird_patch.o" >> Makefile
         fi
-
+    
+    - name: scx
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace
+        git clone https://github.com/HanKuCha/sched_ext.git
+        cp -r ./sched_ext/* ./android-kernel/kernel/sched
+        rm -rf ./sched_ext/.git
+ 
     - name: Add SUSFS Configuration Settings
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
