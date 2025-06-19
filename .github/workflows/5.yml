@@ -403,26 +403,6 @@ jobs:
           if [ -n "$BOOT_IMG_URL" ]; then
             echo "下载 boot.img 从提供的 URL: $BOOT_IMG_URL"
             
-            # 检查 URL 是否是 GitHub release asset
-            if [[ "$BOOT_IMG_URL" == *"github.com"* ]] || [[ "$BOOT_IMG_URL" == *"github-production"* ]]; then
-              echo "检测到 GitHub release asset - 使用 API 下载"
-              
-              # 提取 asset ID
-              asset_id=$(echo "$BOOT_IMG_URL" | grep -oE '[0-9]{7,}' | head -1)
-              
-              if [ -z "$asset_id" ]; then
-                echo "::error::无法从 URL 中提取 asset ID"
-                exit 1
-              fi
-              
-              echo "提取的 Asset ID: $asset_id"
-              
-              # 使用 GitHub API 下载 asset
-              curl -L -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                -H "Accept: application/octet-stream" \
-                "https://api.github.com/repos/${{ github.repository }}/releases/assets/$asset_id" \
-                -o boot.img
-            else
               # 普通 URL 直接下载
               echo "下载标准 URL"
               curl -L "$BOOT_IMG_URL" -o boot.img
@@ -433,8 +413,7 @@ jobs:
               echo "使用仓库中的 boot.img"
             else
               echo "::warning::未提供 boot.img 且仓库中没有默认文件"
-              # 创建占位符 boot.img
-              dd if=/dev/zero of=boot.img bs=1M count=64
+
             fi
           fi
           
