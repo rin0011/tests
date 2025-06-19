@@ -369,7 +369,7 @@ jobs:
         rm -rf AnyKernel3/.git
         cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
-        zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
+        zip -r9 ./AnyKernel3-${{ env.KSUVER }}.zip *
     
     - name: Upload Image
       if: env.CHECK_IMAGE == 'true'
