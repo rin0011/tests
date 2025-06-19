@@ -245,16 +245,40 @@ jobs:
         AR_CMD="ARCH=${ARCH} SUBARCH=${SUBARCH} HEADER_ARCH=${HEADER_ARCH}"
         BA_CMD="CC=${CC} CXX=${CXX}"
         EX_CMD="LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf OBJSIZE=llvm-size STRIP=llvm-strip LLVM=1 LLVM_IAS=1"
-        DEFCONFIG="gki_defconfig"
         
-        make O=out $AR_CMD $BA_CMD $EX_CMD $DEFCONFIG
-        scripts/config --file out/.config -e LTO_CLANG -d LTO_NONE -e LTO_CLANG_THIN -d LTO_CLANG_FULL -e THINLTO
+        # 修复配置步骤：分开执行配置和构建
+        # 1. 先单独执行defconfig
+        echo "===== 运行配置步骤 ====="
+        make O=out $AR_CMD $BA_CMD $EX_CMD gki_defconfig all
         
-        make -j$(nproc --all) O=out $AR_CMD $BA_CMD $EX_CMD
+        # 检查.config是否存在
+        if [ ! -f "out/.config" ]; then
+            echo "错误: out/.config 文件未生成！"
+            ls -la out
+            exit 1
+        fi
+        
+        # 2. 修改配置
+        echo "===== 修改配置 ====="
+        scripts/config --file out/.config -e LTO_CLANG
+        scripts/config --file out/.config -d LTO_NONE
+        scripts/config --file out/.config -e LTO_CLANG_THIN
+        scripts/config --file out/.config -d LTO_CLANG_FULL
+        scripts/config --file out/.config -e THINLTO
+        
+        # 3. 显示关键配置选项
+        echo "===== 关键配置选项 ====="
+        scripts/config --file out/.config -s LTO_CLANG
+        scripts/config --file out/.config -s LTO_CLANG_THIN
+        scripts/config --file out/.config -s KSU
+        scripts/config --file out/.config -s KSU_SUSFS
+        
+        # 4. 执行构建
+        echo "===== 开始构建内核 ====="
+        make -j$(($(nproc --all) - 1)) O=out $AR_CMD $BA_CMD $EX_CMD
         
         # 显示ccache统计
-        ccache -s
-    
+         ccache -s
     - name: Check kernel output files
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
