@@ -2,6 +2,9 @@ name: Build 5PRO
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
 
 env:
   TZ: Asia/Shanghai
@@ -15,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLANG_VERSION: clang-r536225
+
+    permissions:
+      contents: write
+      actions: read
 
     steps:
     - uses: actions/checkout@v4
@@ -356,6 +363,8 @@ jobs:
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf AnyKernel3/.git
         cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
+        cd AnyKernel3
+        zip -r9 ../AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip *
     
     - name: Upload Image
       if: env.CHECK_IMAGE == 'true'
@@ -370,3 +379,24 @@ jobs:
       with:
         name: AK3-${{ env.KSUVER }}-${{ env.BUILD_TIME }}
         path: kernel_workspace/AnyKernel3/*
+
+
+    - name: Create Release and Upload Assets
+      uses: softprops/action-gh-release@v2
+      if: ${{ success() }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.KSUVER }}
+        name: "sukisu ${{ env.KSUVER }}"
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'rc') }}
+        generate_release_notes: true
+        body: |
+          **Build Details**
+          - KernelSU Version: ${{ env.KSUVER }}
+          - Build Date: ${{ steps.date.outputs.current-date }}
+        files: |
+          AnyKernel3-OSS-OPace3-${{ env.KSUVER }}.zip
+          kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+          kernel_workspace/android-kernel/out/arch/arm64/boot/boot.img
