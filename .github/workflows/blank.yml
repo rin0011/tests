@@ -252,6 +252,8 @@ jobs:
     - name: Build kernel with detailed logging
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+
+        export KBUILD_BUILD_TIMESTAMP='Wed Dec 4 02:11:46 UTC 2024'
         
         # 配置ccache环境变量
         export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
@@ -315,7 +317,6 @@ jobs:
         
         # 7. 执行详细构建
         echo "===== 开始详细构建内核 ====="
-        # 使用V=1获取详细输出
         make -j$(($(nproc --all))) O=out \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
