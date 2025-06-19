@@ -391,7 +391,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
+        tag_name: v${{ env.KSUVER }}
         name: "SukiSU Kernel ${{ github.ref_name }}"
         draft: false
         prerelease: ${{ contains(github.ref_name, 'rc') }}
@@ -400,8 +400,6 @@ jobs:
           **Build Details**
           - KernelSU Version: ${{ env.KSUVER }}
           - Build Date: ${{ steps.date.outputs.current-date }}
-          - Commit: ${{ github.sha }}
-          - Triggered by: @${{ github.actor }}
           
           **Artifacts:**
           - Kernel Image: Image-${{ env.KSUVER }}
