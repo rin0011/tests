@@ -49,6 +49,12 @@ jobs:
         ccache --show-config
         ccache -z
 
+    - name: Configure Git for kernel build
+      run: |
+       git config --global user.email "action@github.com"
+       git config --global user.name "GitHub Action"
+       git config --global advice.addEmbeddedRepo false
+
     # 缓存ccache目录
     - name: Cache ccache
       uses: actions/cache@v4
