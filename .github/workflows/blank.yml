@@ -25,7 +25,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set swap to 10G
       uses: pierotofy/set-swap-space@master
       with:
@@ -35,7 +35,7 @@ jobs:
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install aria2 git dwarves libelf-dev ccache automake flex bison build-essential \
+        sudo apt-get install -y aria2 git dwarves libelf-dev ccache automake flex bison build-essential \
               zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
               libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
@@ -130,13 +130,9 @@ jobs:
         cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
         cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
         
-        # 应用补丁前修复关键问题
-        #sed -i 's/-32,12 +32,38/-32,11 +32,37/g' 50_add_susfs_in_gki-android15-6.6.patch
-        #sed -i '/#include <trace\/hooks\/fs.h>/d' 50_add_susfs_in_gki-android15-6.6.patch
-        
         # 应用补丁
         patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-        patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 -F 3 < syscall_hooks.patch || true
 
     - name: Apply HMBird GKI patch
       run: |
@@ -369,7 +365,10 @@ jobs:
         rm -rf AnyKernel3/.git
         cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
-        zip -r9 ./AnyKernel3-${{ env.KSUVER }}.zip *
+        zip -r9 AnyKernel3-${{ env.KSUVER }}.zip *
+        
+        # 将zip文件移动到工作区根目录
+        mv AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
     
     - name: Upload Image
       if: env.CHECK_IMAGE == 'true'
@@ -383,17 +382,16 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: AK3-${{ env.KSUVER }}-${{ env.BUILD_TIME }}
-        path: kernel_workspace/AnyKernel3/*
-
+        path: AnyKernel3-${{ env.KSUVER }}.zip
 
     - name: Create Release and Upload Assets
+      if: ${{ success() && github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
       uses: softprops/action-gh-release@v2
-      if: ${{ success() }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ env.KSUVER }}
-        name: "sukisu ${{ env.KSUVER }}"
+        tag_name: ${{ github.ref }}
+        name: "SukiSU Kernel ${{ github.ref_name }}"
         draft: false
         prerelease: ${{ contains(github.ref_name, 'rc') }}
         generate_release_notes: true
@@ -401,7 +399,16 @@ jobs:
           **Build Details**
           - KernelSU Version: ${{ env.KSUVER }}
           - Build Date: ${{ steps.date.outputs.current-date }}
+          - Commit: ${{ github.sha }}
+          - Triggered by: @${{ github.actor }}
+          
+          **Artifacts:**
+          - Kernel Image: Image-${{ env.KSUVER }}
+          - AnyKernel3 Zip: AK3-${{ env.KSUVER }}-${{ env.BUILD_TIME }}
+          
+          **Build Environment:**
+          - OS: ubuntu-latest
+          - Clang Version: ${{ env.CLANG_VERSION }}
         files: |
           AnyKernel3-${{ env.KSUVER }}.zip
           kernel_workspace/android-kernel/out/arch/arm64/boot/Image
-          kernel_workspace/android-kernel/out/arch/arm64/boot/boot.img
