@@ -28,7 +28,8 @@ jobs:
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole
+        sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential \
+              zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
         
         # 创建ccache目录
@@ -39,16 +40,14 @@ jobs:
         ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
         ccache --set-config=compression=true
         ccache --set-config=compression_level=6
-        ccache --set-config=debug=true
         ccache --set-config=hash_dir=false  # 对CI环境很重要
         ccache --set-config=sloppiness=file_macro,locale,time_macros
         
         # 显示初始配置
         ccache --show-config
-        ccache --show-stats
         ccache -z  # 重置统计
 
-    # 缓存ccache目录
+    # 缓存ccache目录 (合并为一个)
     - name: Cache ccache
       uses: actions/cache@v4
       with:
@@ -56,15 +55,6 @@ jobs:
         key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
         restore-keys: |
           ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
-          ccache-${{ runner.os }}-
-
-    # ccache缓存
-    - name: Cache ccache
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.CCACHE_DIR }}
-        key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}
-        restore-keys: |
           ccache-${{ runner.os }}-
 
     - name: Cache Clang toolchain
@@ -101,18 +91,22 @@ jobs:
         KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10606)
         echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
         
-    - name: Setup susfs
+    - name: Setup susfs (修复头文件和变量问题)
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+        cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+        
         cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-        cp ../susfs4ksu/kernel_patches/fs/* ./fs/
-        cp ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
         cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+        
+        # 应用补丁前修复关键问题
         sed -i 's/-32,12 +32,38/-32,11 +32,37/g' 50_add_susfs_in_gki-android15-6.6.patch
         sed -i '/#include <trace\/hooks\/fs.h>/d' 50_add_susfs_in_gki-android15-6.6.patch
-
+        
+        # 应用补丁
         patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-        patch -p1 -F 3 < syscall_hooks.patch
+        patch -p1 -F 3 < syscall_hooks.patch || true
 
     - name: Apply HMBird GKI patch
       run: |
@@ -123,7 +117,7 @@ jobs:
         #include <linux/of.h>
         #include <linux/slab.h>
         #include <linux/string.h>
-        #include <linux/printk.h>  // 添加printk头文件
+        #include <linux/printk.h>
         
         static int __init hmbird_patch_init(void)
         {
@@ -144,7 +138,7 @@ jobs:
                  return 0;
             }
         
-            if (strcmp(type, "HMBIRD_OGKI") != 0) {  // 修正字符串比较
+            if (strcmp(type, "HMBIRD_OGKI") != 0) {
                  of_node_put(ver_np);
                  return 0;
             }
@@ -158,7 +152,7 @@ jobs:
                       return -ENOMEM;
                  }
                  memcpy(new_prop, prop, sizeof(*prop));
-                 new_prop->value = kstrdup("HMBIRD_GKI", GFP_KERNEL);  // 使用kstrdup更安全
+                 new_prop->value = kstrdup("HMBIRD_GKI", GFP_KERNEL);
                  if (!new_prop->value) {
                       pr_err("hmbird_patch: kmalloc for new_prop->value failed\n");
                       kfree(new_prop);
@@ -195,10 +189,35 @@ jobs:
         MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
         EOF
         
-        # 添加到Makefile
         if ! grep -q "hmbird_patch.o" Makefile; then
             echo "obj-y += hmbird_patch.o" >> Makefile
         fi
+
+    - name: Add SUSFS Configuration Settings
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        echo "CONFIG_KSU=y" >> ./arch/arm64/configs/gki_defconfig
+
+        # Add VFS configuration settings
+        echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./arch/arm64/configs/gki_defconfig
+        
+        # Add SUSFS configuration settings
+        echo "CONFIG_KSU_SUSFS=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./arch/arm64/configs/gki_defconfig
 
     - name: Build kernel
       run: |
@@ -230,7 +249,11 @@ jobs:
         
         make O=out $AR_CMD $BA_CMD $EX_CMD $DEFCONFIG
         scripts/config --file out/.config -e LTO_CLANG -d LTO_NONE -e LTO_CLANG_THIN -d LTO_CLANG_FULL -e THINLTO
+        
         make -j$(nproc --all) O=out $AR_CMD $BA_CMD $EX_CMD
+        
+        # 显示ccache统计
+        ccache -s
     
     - name: Check kernel output files
       run: |
