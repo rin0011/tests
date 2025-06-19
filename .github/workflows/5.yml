@@ -476,7 +476,7 @@ jobs:
           cd repack_workdir
           
           # 解包原始 boot.img
-          "$MAGISKBOOT_PATH" unpack "../$BOOT_IMG_PATH"
+          "$MAGISKBOOT_PATH" unpack " $BOOT_IMG_PATH"
           
           # 检查是否解包成功
           if [ ! -f "kernel" ]; then
