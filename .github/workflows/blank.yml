@@ -28,6 +28,8 @@ jobs:
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
         sudo apt-get update
+        # 安装 aria2 用于高效下载
+        sudo apt-get install -y aria2
         sudo apt-get install git dwarves libelf-dev ccache automake flex bison build-essential \
               zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
@@ -64,14 +66,30 @@ jobs:
         path: ${{ github.workspace }}/kernel_workspace/clang-aosp
         key: ${{ env.CLANG_VERSION }}
 
-    - name: Download & extract Clang-aosp
+    - name: Download & extract Clang-aosp using aria2
       if: steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir -p clang-aosp
-        wget -O ${CLANG_VERSION}.tar.gz \
-          https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz
-        tar -C clang-aosp -zxvf ${CLANG_VERSION}.tar.gz
+        
+        # 使用aria2下载Clang工具链
+        DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"
+        echo "下载链接: $DOWNLOAD_URL"
+        
+        # 使用aria2多线程下载
+        aria2c -x16 -s16 -j16 -k1M --file-allocation=falloc --retry-wait=5 -m0 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
+        
+        # 验证下载完整性
+        if [ ! -f "${CLANG_VERSION}.tar.gz" ]; then
+            echo "错误: 下载失败！"
+            exit 1
+        fi
+        
+        # 解压文件
+        tar -C clang-aosp -zxvf "${CLANG_VERSION}.tar.gz"
+        
+        # 清理下载文件
+        rm -f "${CLANG_VERSION}.tar.gz"
         
     - name: Download kernel source
       run: |
@@ -224,7 +242,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
 
-    - name: Build kernel (修复配置问题)
+    - name: Build kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         
