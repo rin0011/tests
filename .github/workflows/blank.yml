@@ -255,8 +255,6 @@ jobs:
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_LOCALVERSION=\"-android15-8-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
-        sudo sed -i 's/check_defconfig//' ./build.config.gki
-        git add -A && git commit -a -m "BUILD Kernel"
 
     - name: Build kernel with detailed logging
       run: |
@@ -409,5 +407,5 @@ jobs:
           - OS: ubuntu-latest
           - Clang Version: ${{ env.CLANG_VERSION }}
         files: |
-          AnyKernel3-${{ env.KSUVER }}.zip
+          $GITHUB_WORKSPACE/AnyKernel3-${{ env.KSUVER }}.zip
           kernel_workspace/android-kernel/out/arch/arm64/boot/Image
