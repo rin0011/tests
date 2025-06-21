@@ -117,8 +117,8 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
-        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10606)
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-1.5.8/kernel/setup.sh" | bash -s susfs-1.5.8
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count susfs-main) + 10606)
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         
     - name: Setup susfs
@@ -241,7 +241,7 @@ jobs:
         echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_PATH=n" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/gki_defconfig
@@ -256,7 +256,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_LOCALVERSION=\"-android15-8-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
 
-    - name: Build kernel with detailed logging
+    - name: Build kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
 
@@ -408,4 +408,5 @@ jobs:
           - Clang Version: ${{ env.CLANG_VERSION }}
         files: |
           $GITHUB_WORKSPACE/AnyKernel3-${{ env.KSUVER }}.zip
+          $GITHUB_WORKSPACE/AK3-${{ env.KSUVER }}.zip
           kernel_workspace/android-kernel/out/arch/arm64/boot/Image
