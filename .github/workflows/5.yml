@@ -7,6 +7,20 @@ on:
         description: "URL of the original boot.img (optional)"
         required: false
         default: ""
+      boot_img_source:
+        description: "Source repository for boot.img"
+        required: false
+        type: choice
+        options:
+          - default_repo
+          - current_repo
+          - tag
+          - custom_url
+        default: "tag"
+      boot_img_tag:
+        description: "Tag name for boot.img (required if source is tag)"
+        required: false
+        default: ""
   push:
     tags:
       - "v*.*.*"  # 仅在推送标签匹配 v*.*.* 时触发
@@ -17,6 +31,12 @@ env:
   CCACHE_COMPRESS: 1
   CCACHE_MAXSIZE: 10G
   BOOT_IMG_URL: ${{ github.event.inputs.boot_img_url }}
+  BOOT_IMG_SOURCE: ${{ github.event.inputs.boot_img_source || 'default_repo' }}
+  BOOT_IMG_TAG: ${{ github.event.inputs.boot_img_tag }}
+  DEFAULT_BOOT_REPO: "https://github.com/rin0011/opace5_pro_fw"
+  DEFAULT_BOOT_PATH: "raw/main/boot.img"
+  CURRENT_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/boot.img"
+  TAG_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.repository }}/${{ inputs.boot_img_tag }}/boot.img"
 
 jobs:
   build:
@@ -99,7 +119,7 @@ jobs:
           DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"
           echo "下载链接: $DOWNLOAD_URL"
           
-          aria2c -x16 -s16 -j16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
+          aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
           
           if [ ! -f "${CLANG_VERSION}.tar.gz" ]; then
               echo "错误: 下载失败！"
@@ -371,12 +391,7 @@ jobs:
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
           rm -rf AnyKernel3/.git
           cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
-          cd AnyKernel3
-          zip -r9 AnyKernel3-${{ env.KSUVER }}.zip *
-          
-          # 将zip文件移动到工作区根目录
-          mv AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
-      
+                
       - name: Download Magisk and extract magiskboot
         if: env.CHECK_IMAGE == 'true'
         run: |
@@ -399,23 +414,53 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE
           
-          # 如果提供了 boot.img URL
-          if [ -n "$BOOT_IMG_URL" ]; then
-            echo "下载 boot.img 从提供的 URL: $BOOT_IMG_URL"
-            
-              # 普通 URL 直接下载
-              echo "下载标准 URL"
-              curl -L "$BOOT_IMG_URL" -o boot.img
-            fi
-          else
-            # 否则尝试从仓库获取默认的 boot.img
-            if [ -f "boot.img" ]; then
-              echo "使用仓库中的 boot.img"
-            else
-              echo "::warning::未提供 boot.img 且仓库中没有默认文件"
-
-            fi
-          fi
+          # 根据选择的来源获取boot.img
+          case "$BOOT_IMG_SOURCE" in
+            "custom_url")
+              if [ -n "$BOOT_IMG_URL" ]; then
+                echo "从自定义URL下载 boot.img: $BOOT_IMG_URL"
+                curl -fL "$BOOT_IMG_URL" -o boot.img
+              else
+                echo "::error::选择了custom_url但没有提供URL!"
+                exit 1
+              fi
+              ;;
+              
+            "current_repo")
+              echo "从当前仓库分支获取 boot.img"
+              CURRENT_REPO_URL="$CURRENT_REPO_BOOT_PATH"
+              echo "下载URL: $CURRENT_REPO_URL"
+              curl -fL "$CURRENT_REPO_URL" -o boot.img || {
+                echo "::error::无法从当前仓库获取 boot.img!"
+                exit 1
+              }
+              ;;
+              
+            "tag")
+              if [ -z "$BOOT_IMG_TAG" ]; then
+                echo "::error::选择了标签来源但没有提供标签名!"
+                exit 1
+              fi
+              
+              echo "从标签获取 boot.img: $BOOT_IMG_TAG"
+              TAG_URL="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$BOOT_IMG_TAG/boot.img"
+              echo "下载URL: $TAG_URL"
+              curl -fL "$TAG_URL" -o boot.img || {
+                echo "::error::无法从标签 $BOOT_IMG_TAG 获取 boot.img!"
+                exit 1
+              }
+              ;;
+              
+            "default_repo"|*)
+              echo "从默认仓库获取 boot.img"
+              DEFAULT_URL="$DEFAULT_BOOT_REPO/$DEFAULT_BOOT_PATH"
+              echo "下载URL: $DEFAULT_URL"
+              curl -fL "$DEFAULT_URL" -o boot.img || {
+                echo "::error::无法从默认仓库获取 boot.img!"
+                exit 1
+              }
+              ;;
+          esac
           
           # 验证 boot.img 文件
           if [ ! -f "boot.img" ]; then
@@ -494,35 +539,3 @@ jobs:
             kernel_workspace/android-kernel/out/arch/arm64/boot/Image
             AnyKernel3-${{ env.KSUVER }}.zip
             ${{ env.REPACKED_BOOT_IMG_PATH }}
-
-      - name: Create Release and Upload Assets
-        if: ${{ success() && github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          name: "SukiSU Kernel ${{ github.ref_name }}"
-          draft: false
-          prerelease: ${{ contains(github.ref_name, 'rc') }}
-          generate_release_notes: true
-          body: |
-            **Build Details**
-            - KernelSU Version: ${{ env.KSUVER }}
-            - Build Date: ${{ steps.date.outputs.current-date }}
-            - Commit: ${{ github.sha }}
-            - Triggered by: @${{ github.actor }}
-            
-            **Artifacts:**
-            - Kernel Image: Image
-            - AnyKernel3 Zip: AnyKernel3-${{ env.KSUVER }}.zip
-            - Boot Image: boot-${{ env.KSUVER }}.img
-            
-            **Build Environment:**
-            - OS: ubuntu-latest
-            - Clang Version: ${{ env.CLANG_VERSION }}
-            ${{ env.BOOT_IMG_URL && '**Note:** Custom boot image used' || '**Note:** Default boot image used' }}
-          files: |
-            kernel_workspace/android-kernel/out/arch/arm64/boot/Image
-            AnyKernel3-${{ env.KSUVER }}.zip
-            boot-${{ env.KSUVER }}.img
