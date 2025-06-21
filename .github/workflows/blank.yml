@@ -407,6 +407,5 @@ jobs:
           - OS: ubuntu-latest
           - Clang Version: ${{ env.CLANG_VERSION }}
         files: |
-          $GITHUB_WORKSPACE/AnyKernel3-${{ env.KSUVER }}.zip
-          $GITHUB_WORKSPACE/AK3-${{ env.KSUVER }}.zip
+          AnyKernel3-${{ env.KSUVER }}.zip
           kernel_workspace/android-kernel/out/arch/arm64/boot/Image
