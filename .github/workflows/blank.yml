@@ -364,10 +364,8 @@ jobs:
         rm -rf AnyKernel3/.git
         cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
-        zip -r9 AnyKernel3-${{ env.KSUVER }}.zip *
-        
-        # 将zip文件移动到工作区根目录
-       # mv AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
+        zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
+
     
     - name: Upload Image
       if: env.CHECK_IMAGE == 'true'
@@ -381,7 +379,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: AnyKernel3-${{ env.KSUVER }}-${{ env.BUILD_TIME }}
-        path: kernel_workspace/AnyKernel3-${{ env.KSUVER }}.zip
+        path: ./AnyKernel3-${{ env.KSUVER }}.zip
 
     - name: Create Release and Upload Assets
       if: ${{ success() && github.event_name == 'push' && contains(github.ref, 'refs/tags/') }}
