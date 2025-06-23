@@ -16,9 +16,18 @@ on:
           - current_repo
           - tag
           - custom_url
+          - custom_repo
         default: "tag"
       boot_img_tag:
         description: "Tag name for boot.img (required if source is tag)"
+        required: false
+        default: ""
+      custom_repo:
+        description: "Custom repository for boot.img (e.g., 'user/repo')"
+        required: false
+        default: ""
+      custom_tag:
+        description: "Tag name in custom repository"
         required: false
         default: ""
   push:
@@ -33,10 +42,13 @@ env:
   BOOT_IMG_URL: ${{ github.event.inputs.boot_img_url }}
   BOOT_IMG_SOURCE: ${{ github.event.inputs.boot_img_source || 'default_repo' }}
   BOOT_IMG_TAG: ${{ github.event.inputs.boot_img_tag }}
+  CUSTOM_REPO: ${{ github.event.inputs.custom_repo }}
+  CUSTOM_TAG: ${{ github.event.inputs.custom_tag }}
   DEFAULT_BOOT_REPO: "https://github.com/rin0011/opace5_pro_fw"
   DEFAULT_BOOT_PATH: "raw/main/boot.img"
   CURRENT_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/boot.img"
   TAG_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.repository }}/${{ inputs.boot_img_tag }}/boot.img"
+  CUSTOM_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.event.inputs.custom_repo }}/${{ github.event.inputs.custom_tag }}/boot.img"
 
 jobs:
   build:
@@ -451,6 +463,21 @@ jobs:
               }
               ;;
               
+            "custom_repo")
+              if [[ -z "$CUSTOM_REPO" || -z "$CUSTOM_TAG" ]]; then
+                echo "::error::必须提供自定义仓库和标签名!"
+                exit 1
+              fi
+              
+              echo "从自定义仓库获取 boot.img: $CUSTOM_REPO (标签: $CUSTOM_TAG)"
+              CUSTOM_URL="$CUSTOM_REPO_BOOT_PATH"
+              echo "下载URL: $CUSTOM_URL"
+              curl -fL "$CUSTOM_URL" -o boot.img || {
+                echo "::error::无法从自定义仓库获取 boot.img!"
+                exit 1
+              }
+              ;;
+              
             "default_repo"|*)
               echo "从默认仓库获取 boot.img"
               DEFAULT_URL="$DEFAULT_BOOT_REPO/$DEFAULT_BOOT_PATH"
@@ -530,6 +557,14 @@ jobs:
           cd ..
           echo "REPACKED_BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot-${KSUVER}.img" >> $GITHUB_ENV
 
+      - name: Create Anykernel3 ZIP
+        if: env.CHECK_IMAGE == 'true'
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/AnyKernel3
+          zip -r9 "AnyKernel3-${KSUVER}.zip" . -x .gitignore
+          mv "AnyKernel3-${KSUVER}.zip" $GITHUB_WORKSPACE/
+          echo "ANY_KERNEL_ZIP_PATH=$GITHUB_WORKSPACE/AnyKernel3-${KSUVER}.zip" >> $GITHUB_ENV
+
       - name: Upload artifacts
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
@@ -537,5 +572,6 @@ jobs:
           name: Kernel-Artifacts-${{ env.KSUVER }}
           path: |
             kernel_workspace/android-kernel/out/arch/arm64/boot/Image
-            AnyKernel3-${{ env.KSUVER }}.zip
+            ${{ env.ANY_KERNEL_ZIP_PATH }}
             ${{ env.REPACKED_BOOT_IMG_PATH }}
+          retention-days: 7
