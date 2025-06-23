@@ -2,10 +2,6 @@ name: Build boot 5PRO
 
 on:
   workflow_dispatch:
-    inputs:
-      boot_img_tag:
-        description: "（可选）手动输入 boot.img 对应的 tag（留空则自动获取最新 PKR110_15.*.*.* 标签）"
-        required: false
   push:
     tags:
       - "v*.*.*"
@@ -15,7 +11,6 @@ env:
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_COMPRESS: 1
   CCACHE_MAXSIZE: 10G
-  RIN_REPO: "rin0011/opace5_pro_fw"
 
 jobs:
   build:
@@ -35,29 +30,37 @@ jobs:
         with:
           swap-size-gb: 10
 
-      - name: Get boot_img_tag (manual or auto)
-        id: get-boot-img-tag
+      # 获取 release 中 boot.img 的下载链接
+      - name: Get latest release boot.img asset URL
+        id: get-boot-img-url
         run: |
-          if [ -n "${{ github.event.inputs.boot_img_tag }}" ]; then
-            TAG="${{ github.event.inputs.boot_img_tag }}"
-            echo "使用手动输入的 tag: $TAG"
-          else
-            TAG=$(git ls-remote --tags --refs https://github.com/rin0011/opace5_pro_fw.git \
-              | awk -F/ '{print $NF}' \
-              | grep -E '^PKR110_15\.[0-9]+\.[0-9]+\.[0-9]+$' \
-              | sort -V \
-              | tail -n1)
-            echo "自动获取到的最新 tag: $TAG"
-          fi
-          if [ -z "$TAG" ]; then
-            echo "::error::未找到符合条件的 boot.img 标签！"
+          sudo apt-get update && sudo apt-get install -y jq
+          api="https://api.github.com/repos/rin0011/opace5_pro_fw/releases"
+          asset_url=$(curl -s "$api" | jq -r '[.[] | .assets[]? | select(.name=="boot.img")] | sort_by(.created_at) | last | .browser_download_url')
+          if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
+            echo "::error::未找到 boot.img 发行文件"
             exit 1
           fi
-          echo "BOOT_IMG_TAG=$TAG" >> $GITHUB_ENV
+          echo "BOOT_IMG_URL=$asset_url" >> $GITHUB_ENV
 
-      - name: Set RIN_REPO_BOOT_PATH
+      - name: Download boot.img from release asset
         run: |
-          echo "RIN_REPO_BOOT_PATH=https://raw.githubusercontent.com/${RIN_REPO}/${BOOT_IMG_TAG}/boot.img" >> $GITHUB_ENV
+          if [ -z "$BOOT_IMG_URL" ]; then
+            echo "::error::BOOT_IMG_URL 变量为空"
+            exit 1
+          fi
+          echo "下载地址: $BOOT_IMG_URL"
+          curl -fL -o boot.img "$BOOT_IMG_URL"
+          if [ ! -f boot.img ]; then
+            echo "::error::boot.img 下载失败"
+            exit 1
+          fi
+          filesize=$(wc -c < boot.img)
+          echo "boot.img 文件大小: $filesize 字节"
+          if [ "$filesize" -lt 10240 ]; then
+            echo "::warning::boot.img 文件大小异常 ($filesize 字节) - 可能是无效文件"
+          fi
+          echo "BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot.img" >> $GITHUB_ENV
 
       - name: Setup build kernel environment
         run: |
@@ -357,35 +360,6 @@ jobs:
           chmod +x magiskboot
           rm -rf magisk_extract magisk.apk
           echo "MAGISKBOOT_PATH=$GITHUB_WORKSPACE/magiskboot" >> $GITHUB_ENV
-
-      - name: Download original boot image
-        if: ${{ env.CHECK_IMAGE == 'true' }}
-        run: |
-          cd $GITHUB_WORKSPACE
-          if [ -z "$BOOT_IMG_TAG" ]; then
-            echo "::error::未找到符合条件的 boot.img 标签!"
-            exit 1
-          fi
-          if [ -z "$RIN_REPO_BOOT_PATH" ]; then
-            echo "::error::RIN_REPO_BOOT_PATH 变量未设置!"
-            exit 1
-          fi
-          echo "从 rin0011/opace5_pro_fw 仓库获取 boot.img (标签: $BOOT_IMG_TAG)"
-          echo "下载URL: $RIN_REPO_BOOT_PATH"
-          curl -fL "$RIN_REPO_BOOT_PATH" -o boot.img || {
-            echo "::error::无法从 rin0011/opace5_pro_fw 仓库获取 boot.img!"
-            exit 1
-          }
-          if [ ! -f "boot.img" ]; then
-            echo "::error::无法获取 boot.img 文件!"
-            exit 1
-          fi
-          filesize=$(wc -c < "boot.img")
-          echo "boot.img 文件大小: $filesize 字节"
-          if [ "$filesize" -lt 10240 ]; then
-            echo "::warning::boot.img 文件大小异常 ($filesize 字节) - 可能是无效文件"
-          fi
-          echo "BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot.img" >> $GITHUB_ENV
 
       - name: Repack kernel to boot image
         if: ${{ env.CHECK_IMAGE == 'true' }}
