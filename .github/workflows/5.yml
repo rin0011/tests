@@ -2,6 +2,20 @@ name: Build boot 5PRO
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "请输入要获取的 release 版本 tag（如 PKR110_15.0.0.840(CN01)，留空则自动获取最新）"
+        required: false
+      file_name:
+        description: "请选择要获取的文件"
+        required: true
+        default: boot.img
+        type: choice
+        options:
+          - boot.img
+          - init_boot.img
+          - fastboot_firmware.zip
+
   push:
     tags:
       - "v*.*.*"
@@ -30,37 +44,45 @@ jobs:
         with:
           swap-size-gb: 10
 
-      # 获取 release 中 boot.img 的下载链接
-      - name: Get latest release boot.img asset URL
-        id: get-boot-img-url
+      - name: Get asset download url from tag and file name
+        id: get-asset-url
         run: |
           sudo apt-get update && sudo apt-get install -y jq
-          api="https://api.github.com/repos/rin0011/opace5_pro_fw/releases"
-          asset_url=$(curl -s "$api" | jq -r '[.[] | .assets[]? | select(.name=="boot.img")] | sort_by(.created_at) | last | .browser_download_url')
-          if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
-            echo "::error::未找到 boot.img 发行文件"
-            exit 1
-          fi
-          echo "BOOT_IMG_URL=$asset_url" >> $GITHUB_ENV
+          file="${{ github.event.inputs.file_name }}"
 
-      - name: Download boot.img from release asset
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            tag="${{ github.event.inputs.tag_name }}"
+            api="https://api.github.com/repos/rin0011/opace5_pro_fw/releases/tags/$tag"
+            asset_url=$(curl -s "$api" | jq -r --arg file "$file" '.assets[] | select(.name==$file) | .browser_download_url')
+            if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
+              echo "::error::未找到 $file (tag: $tag)"
+              exit 1
+            fi
+          else
+            # 自动获取最新 release
+            api="https://api.github.com/repos/rin0011/opace5_pro_fw/releases/latest"
+            asset_url=$(curl -s "$api" | jq -r --arg file "$file" '.assets[] | select(.name==$file) | .browser_download_url')
+            if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
+              echo "::error::未找到最新发行版中的 $file"
+              exit 1
+            fi
+          fi
+          echo "ASSET_URL=$asset_url" >> $GITHUB_ENV
+
+      - name: Download selected asset
         run: |
-          if [ -z "$BOOT_IMG_URL" ]; then
-            echo "::error::BOOT_IMG_URL 变量为空"
+          file="${{ github.event.inputs.file_name }}"
+          curl -fL "$ASSET_URL" -o "$file"
+          if [ ! -f "$file" ]; then
+            echo "::error::文件下载失败"
             exit 1
           fi
-          echo "下载地址: $BOOT_IMG_URL"
-          curl -fL -o boot.img "$BOOT_IMG_URL"
-          if [ ! -f boot.img ]; then
-            echo "::error::boot.img 下载失败"
-            exit 1
-          fi
-          filesize=$(wc -c < boot.img)
-          echo "boot.img 文件大小: $filesize 字节"
+          filesize=$(wc -c < "$file")
+          echo "$file 文件大小: $filesize 字节"
           if [ "$filesize" -lt 10240 ]; then
-            echo "::warning::boot.img 文件大小异常 ($filesize 字节) - 可能是无效文件"
+            echo "::warning::$file 文件大小异常 ($filesize 字节) - 可能是无效文件"
           fi
-          echo "BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot.img" >> $GITHUB_ENV
+          echo "BOOT_IMG_PATH=$GITHUB_WORKSPACE/$file" >> $GITHUB_ENV
 
       - name: Setup build kernel environment
         run: |
