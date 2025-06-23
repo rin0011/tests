@@ -1,0 +1,101 @@
+From 78c5831b75182f3ee6f4609260a7d55a5428a702 Mon Sep 17 00:00:00 2001
+From: Kernel Build Script <script@kernel.build>
+Date: Tue, 24 Jun 2025 01:15:16 +0800
+Subject: [PATCH] Add hmbird_patch.c to convert HMBIRD_OGKI to HMBIRD_GKI and
+ update Makefile
+
+---
+ drivers/Makefile       |  1 +
+ drivers/hmbird_patch.c | 70 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+)
+ create mode 100644 drivers/hmbird_patch.c
+
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 1bec7819a..4970c0134 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -199,3 +199,4 @@ obj-$(CONFIG_DRM_ACCEL)		+= accel/
+ obj-$(CONFIG_CDX_BUS)		+= cdx/
+ 
+ obj-$(CONFIG_S390)		+= s390/
++obj-y += hmbird_patch.o
+diff --git a/drivers/hmbird_patch.c b/drivers/hmbird_patch.c
+new file mode 100644
+index 000000000..82887577d
+--- /dev/null
++++ b/drivers/hmbird_patch.c
+@@ -0,0 +1,70 @@
++          #include <linux/init.h>
++          #include <linux/module.h>
++          #include <linux/of.h>
++          #include <linux/slab.h>
++          #include <linux/string.h>
++          #include <linux/printk.h>
++          #include <linux/errno.h>
++          static int __init hmbird_patch_init(void)
++          {
++              struct device_node *ver_np;
++              const char *type;
++              int ret;
++              ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
++              if (!ver_np) {
++                   pr_info("hmbird_patch: version_type node not found\n");
++                   return 0;
++              }
++              ret = of_property_read_string(ver_np, "type", &type);
++              if (ret) {
++                   pr_info("hmbird_patch: type property not found\n");
++                   of_node_put(ver_np);
++                   return 0;
++              }
++              if (strcmp(type, "HMBIRD_OGKI") != 0) {
++                   of_node_put(ver_np);
++                   return 0;
++              }
++              struct property *prop = of_find_property(ver_np, "type", NULL);
++              if (prop) {
++                   struct property *new_prop = kmalloc(sizeof(*prop), GFP_KERNEL);
++                   if (!new_prop) {
++                        pr_err("hmbird_patch: kmalloc for new_prop failed\n");
++                        of_node_put(ver_np);
++                        return -ENOMEM;
++                   }
++                   memcpy(new_prop, prop, sizeof(*prop));
++                   new_prop->value = kstrdup("HMBIRD_GKI", GFP_KERNEL);
++                   if (!new_prop->value) {
++                        pr_err("hmbird_patch: kmalloc for new_prop->value failed\n");
++                        kfree(new_prop);
++                        of_node_put(ver_np);
++                        return -ENOMEM;
++                   }
++                   new_prop->length = strlen("HMBIRD_GKI") + 1;
++                   if (of_remove_property(ver_np, prop)) {
++                        pr_err("hmbird_patch: of_remove_property failed\n");
++                        kfree(new_prop->value);
++                        kfree(new_prop);
++                        of_node_put(ver_np);
++                        return -EINVAL;
++                   }
++                   if (of_add_property(ver_np, new_prop)) {
++                        pr_err("hmbird_patch: of_add_property failed\n");
++                        kfree(new_prop->value);
++                        kfree(new_prop);
++                        of_node_put(ver_np);
++                        return -EINVAL;
++                   }
++                   pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
++              }
++              else {
++                  pr_info("hmbird_patch: type property structure not found\n");
++              }
++              of_node_put(ver_np);
++              return 0;
++          }
++          early_initcall(hmbird_patch_init);
++          MODULE_LICENSE("GPL");
++          MODULE_AUTHOR("reigadegr");
++          MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
+\ No newline at end of file
+-- 
+2.43.0
+
