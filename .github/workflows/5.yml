@@ -90,7 +90,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y aria2 git dwarves libelf-dev ccache automake flex bison build-essential \
             zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
-            libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+            libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev unzip
           mkdir -p $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p "${CCACHE_DIR}"
           ccache --set-config=cache_dir="${CCACHE_DIR}"
@@ -288,7 +288,7 @@ jobs:
           sudo sed -i 's/check_defconfig//' ./build.config.gki
           git add -A && git commit -a -m "BUILD Kernel"
 
-      - name: Build kernel with detailed logging
+      - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           export KBUILD_BUILD_TIMESTAMP='Wed Dec 4 02:11:46 UTC 2024'
@@ -371,18 +371,40 @@ jobs:
           rm -rf AnyKernel3/.git
           cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
 
-      - name: Download Magisk and extract magiskboot
-        if: ${{ env.CHECK_IMAGE == 'true' }}
+# ... 你原有的前置 steps（如 checkout、环境安装等）...
+
+      # 获取 Magisk 最新版本和下载链接
+      - name: Get Magisk latest version info
+        id: magisk_version
         run: |
-          cd $GITHUB_WORKSPACE
-          MAGISK_URL=$(curl -s https://api.github.com/repos/topjohnwu/Magisk/releases/latest | grep "browser_download_url.*.apk" | cut -d '"' -f 4 | head -1)
-          echo "Downloading Magisk from: $MAGISK_URL"
-          wget "$MAGISK_URL" -O magisk.apk
-          unzip magisk.apk "lib/x86_64/libmagiskboot.so" -d magisk_extract
+          MAGISK_JSON=$(curl -s https://api.github.com/repos/topjohnwu/Magisk/releases/latest)
+          MAGISK_VERSION=$(echo "$MAGISK_JSON" | jq -r .tag_name)
+          MAGISK_URL=$(echo "$MAGISK_JSON" | jq -r '.assets[] | select(.name | test("\\.apk$")) | .browser_download_url')
+          echo "MAGISK_VERSION=$MAGISK_VERSION" >> $GITHUB_ENV
+          echo "MAGISK_URL=$MAGISK_URL" >> $GITHUB_ENV
+
+      # 基于版本号缓存 Magisk APK
+      - name: Cache Magisk APK
+        id: cache-magisk-apk
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/Magisk.apk
+          key: magisk-apk-${{ env.MAGISK_VERSION }}
+
+      # 未命中缓存时自动下载最新 Magisk APK
+      - name: Download Magisk APK
+        if: steps.cache-magisk-apk.outputs.cache-hit != 'true'
+        run: |
+          wget -O Magisk.apk "$MAGISK_URL"
+
+      # 解包 magiskboot 可执行文件
+      - name: Extract magiskboot from Magisk APK
+        run: |
+          unzip -o Magisk.apk 'lib/x86_64/libmagiskboot.so' -d magisk_extract
           mv magisk_extract/lib/x86_64/libmagiskboot.so magiskboot
           chmod +x magiskboot
-          rm -rf magisk_extract magisk.apk
-          echo "MAGISKBOOT_PATH=$GITHUB_WORKSPACE/magiskboot" >> $GITHUB_ENV
+          rm -rf magisk_extract
+          echo "MAGISKBOOT_PATH=${GITHUB_WORKSPACE}/magiskboot" >> $GITHUB_ENV
 
       - name: Repack kernel to boot image
         if: ${{ env.CHECK_IMAGE == 'true' }}
