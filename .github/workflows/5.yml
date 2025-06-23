@@ -2,6 +2,10 @@ name: Build boot 5PRO
 
 on:
   workflow_dispatch:
+    inputs:
+      boot_img_tag:
+        description: "（可选）手动输入 boot.img 对应的 tag（留空则自动获取最新 PKR110_15.*.*.* 标签）"
+        required: false
   push:
     tags:
       - "v*.*.*"
@@ -31,15 +35,24 @@ jobs:
         with:
           swap-size-gb: 10
 
-      - name: Get latest PKR110_15.*.*.* tag from rin0011/opace5_pro_fw
-        id: get-latest-tag
+      - name: Get boot_img_tag (manual or auto)
+        id: get-boot-img-tag
         run: |
-          TAG=$(git ls-remote --tags --refs https://github.com/rin0011/opace5_pro_fw.git \
-            | awk -F/ '{print $NF}' \
-            | grep -E '^PKR110_15\.[0-9]+\.[0-9]+\.[0-9]+$' \
-            | sort -V \
-            | tail -n1)
-          echo "Latest tag: $TAG"
+          if [ -n "${{ github.event.inputs.boot_img_tag }}" ]; then
+            TAG="${{ github.event.inputs.boot_img_tag }}"
+            echo "使用手动输入的 tag: $TAG"
+          else
+            TAG=$(git ls-remote --tags --refs https://github.com/rin0011/opace5_pro_fw.git \
+              | awk -F/ '{print $NF}' \
+              | grep -E '^PKR110_15\.[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V \
+              | tail -n1)
+            echo "自动获取到的最新 tag: $TAG"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::未找到符合条件的 boot.img 标签！"
+            exit 1
+          fi
           echo "BOOT_IMG_TAG=$TAG" >> $GITHUB_ENV
 
       - name: Set RIN_REPO_BOOT_PATH
