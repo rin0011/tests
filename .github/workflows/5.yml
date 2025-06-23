@@ -17,7 +17,6 @@ env:
   CCACHE_MAXSIZE: 10G
   BOOT_IMG_TAG: ${{ github.event.inputs.boot_img_tag }}
   RIN_REPO: "rin0011/opace5_pro_fw"
-  RIN_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ env.RIN_REPO }}/${{ github.event.inputs.boot_img_tag }}/boot.img"
 
 jobs:
   build:
@@ -25,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLANG_VERSION: clang-r536225
+      # 在这里定义 RIN_REPO_BOOT_PATH，使用 job 级别的 env
+      RIN_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ env.RIN_REPO }}/${{ env.BOOT_IMG_TAG }}/boot.img"
 
     permissions:
       contents: write
