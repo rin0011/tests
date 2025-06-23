@@ -3,33 +3,9 @@ name: Build boot 5PRO
 on:
   workflow_dispatch:
     inputs:
-      boot_img_url:
-        description: "URL of the original boot.img (optional)"
-        required: false
-        default: ""
-      boot_img_source:
-        description: "Source repository for boot.img"
-        required: false
-        type: choice
-        options:
-          - default_repo
-          - current_repo
-          - tag
-          - custom_url
-          - custom_repo
-        default: "tag"
       boot_img_tag:
-        description: "Tag name for boot.img (required if source is tag)"
-        required: false
-        default: ""
-      custom_repo:
-        description: "Custom repository for boot.img (e.g., 'user/repo')"
-        required: false
-        default: ""
-      custom_tag:
-        description: "Tag name in custom repository"
-        required: false
-        default: ""
+        description: "Tag name for boot.img in rin0011/opace5_pro_fw repository"
+        required: true
   push:
     tags:
       - "v*.*.*"  # 仅在推送标签匹配 v*.*.* 时触发
@@ -39,16 +15,9 @@ env:
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_COMPRESS: 1
   CCACHE_MAXSIZE: 10G
-  BOOT_IMG_URL: ${{ github.event.inputs.boot_img_url }}
-  BOOT_IMG_SOURCE: ${{ github.event.inputs.boot_img_source || 'default_repo' }}
   BOOT_IMG_TAG: ${{ github.event.inputs.boot_img_tag }}
-  CUSTOM_REPO: ${{ github.event.inputs.custom_repo }}
-  CUSTOM_TAG: ${{ github.event.inputs.custom_tag }}
-  DEFAULT_BOOT_REPO: "https://github.com/rin0011/opace5_pro_fw"
-  DEFAULT_BOOT_PATH: "raw/main/boot.img"
-  CURRENT_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/boot.img"
-  TAG_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.repository }}/${{ inputs.boot_img_tag }}/boot.img"
-  CUSTOM_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ github.event.inputs.custom_repo }}/${{ github.event.inputs.custom_tag }}/boot.img"
+  RIN_REPO: "rin0011/opace5_pro_fw"
+  RIN_REPO_BOOT_PATH: "https://raw.githubusercontent.com/${{ env.RIN_REPO }}/${{ github.event.inputs.boot_img_tag }}/boot.img"
 
 jobs:
   build:
@@ -426,68 +395,20 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE
           
-          # 根据选择的来源获取boot.img
-          case "$BOOT_IMG_SOURCE" in
-            "custom_url")
-              if [ -n "$BOOT_IMG_URL" ]; then
-                echo "从自定义URL下载 boot.img: $BOOT_IMG_URL"
-                curl -fL "$BOOT_IMG_URL" -o boot.img
-              else
-                echo "::error::选择了custom_url但没有提供URL!"
-                exit 1
-              fi
-              ;;
-              
-            "current_repo")
-              echo "从当前仓库分支获取 boot.img"
-              CURRENT_REPO_URL="$CURRENT_REPO_BOOT_PATH"
-              echo "下载URL: $CURRENT_REPO_URL"
-              curl -fL "$CURRENT_REPO_URL" -o boot.img || {
-                echo "::error::无法从当前仓库获取 boot.img!"
-                exit 1
-              }
-              ;;
-              
-            "tag")
-              if [ -z "$BOOT_IMG_TAG" ]; then
-                echo "::error::选择了标签来源但没有提供标签名!"
-                exit 1
-              fi
-              
-              echo "从标签获取 boot.img: $BOOT_IMG_TAG"
-              TAG_URL="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$BOOT_IMG_TAG/boot.img"
-              echo "下载URL: $TAG_URL"
-              curl -fL "$TAG_URL" -o boot.img || {
-                echo "::error::无法从标签 $BOOT_IMG_TAG 获取 boot.img!"
-                exit 1
-              }
-              ;;
-              
-            "custom_repo")
-              if [[ -z "$CUSTOM_REPO" || -z "$CUSTOM_TAG" ]]; then
-                echo "::error::必须提供自定义仓库和标签名!"
-                exit 1
-              fi
-              
-              echo "从自定义仓库获取 boot.img: $CUSTOM_REPO (标签: $CUSTOM_TAG)"
-              CUSTOM_URL="$CUSTOM_REPO_BOOT_PATH"
-              echo "下载URL: $CUSTOM_URL"
-              curl -fL "$CUSTOM_URL" -o boot.img || {
-                echo "::error::无法从自定义仓库获取 boot.img!"
-                exit 1
-              }
-              ;;
-              
-            "default_repo"|*)
-              echo "从默认仓库获取 boot.img"
-              DEFAULT_URL="$DEFAULT_BOOT_REPO/$DEFAULT_BOOT_PATH"
-              echo "下载URL: $DEFAULT_URL"
-              curl -fL "$DEFAULT_URL" -o boot.img || {
-                echo "::error::无法从默认仓库获取 boot.img!"
-                exit 1
-              }
-              ;;
-          esac
+          # 验证标签是否提供
+          if [ -z "$BOOT_IMG_TAG" ]; then
+            echo "::error::必须提供boot.img的标签名!"
+            exit 1
+          fi
+          
+          # 从rin0011/opace5_pro_fw仓库下载boot.img
+          echo "从 rin0011/opace5_pro_fw 仓库获取 boot.img (标签: $BOOT_IMG_TAG)"
+          RIN_URL="$RIN_REPO_BOOT_PATH"
+          echo "下载URL: $RIN_URL"
+          curl -fL "$RIN_URL" -o boot.img || {
+            echo "::error::无法从 rin0011/opace5_pro_fw 仓库获取 boot.img!"
+            exit 1
+          }
           
           # 验证 boot.img 文件
           if [ ! -f "boot.img" ]; then
