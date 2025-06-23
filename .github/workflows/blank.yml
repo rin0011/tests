@@ -17,7 +17,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: clang-r547379
+      CLANG_VERSION: clang-r536225
 
     permissions:
       contents: write
@@ -282,7 +282,7 @@ jobs:
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
         export LLVM=1
         export LLVM_IAS=1
-        export KCFLAGS="-O2 -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+        export KCFLAGS="-O3 -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
         
         # 1. 确保工具链可用
         echo "===== 验证工具链 ====="
