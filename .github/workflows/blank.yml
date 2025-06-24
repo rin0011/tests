@@ -109,6 +109,7 @@ jobs:
         git clone --recursive https://github.com/brokestar233/android_kernel_common_oneplus_sm8750 -b v3 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
+        sed -i 's/OKI/android15-8/g' setlocalversion
 
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
@@ -255,7 +256,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
-        echo "CONFIG_LOCALVERSION=\"-android15-8-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
+        echo "CONFIG_LOCALVERSION=\"-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
 
     - name: Build kernel
       run: |
