@@ -31,7 +31,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: clang-r547379
+      CLANG_VERSION: clang-r530567
     permissions:
       contents: write
       actions: read
