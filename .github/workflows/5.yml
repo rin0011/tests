@@ -273,7 +273,7 @@ jobs:
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=n" >> arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/gki_defconfig
@@ -291,7 +291,7 @@ jobs:
       - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          export KBUILD_BUILD_TIMESTAMP='Wed Dec 4 02:11:46 UTC 2024'
+          export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           export CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
           export CCACHE_CPP2=yes
@@ -370,8 +370,6 @@ jobs:
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
           rm -rf AnyKernel3/.git
           cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
-
-# ... 你原有的前置 steps（如 checkout、环境安装等）...
 
       # 获取 Magisk 最新版本和下载链接
       - name: Get Magisk latest version info

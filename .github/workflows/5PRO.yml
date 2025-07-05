@@ -225,7 +225,7 @@ jobs:
         echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_PATH=n" >> arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/gki_defconfig
@@ -242,7 +242,7 @@ jobs:
     - name: Build kernel with detailed logging
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        export KBUILD_BUILD_TIMESTAMP='Wed Dec 4 02:11:46 UTC 2024'
+        export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
         
         # 配置ccache环境变量
         export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
