@@ -30,6 +30,17 @@ jobs:
       with:
         swap-size-gb: 10
 
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+       path: |
+        /var/cache/apt/archives
+        /var/lib/apt/lists
+       key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/blank.yml') }}
+       restore-keys: |
+        apt-${{ runner.os }}-
+
+
     - name: Setup build kernel environment
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV

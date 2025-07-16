@@ -27,6 +27,17 @@ jobs:
       with:
         swap-size-gb: 10
 
+    # 缓存 apt 缓存目录
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+       path: |
+        /var/cache/apt/archives
+        /var/lib/apt/lists
+       key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/blank.yml') }}
+       restore-keys: |
+        apt-${{ runner.os }}-
+
 
     - name: Setup build kernel environment
       run: |
@@ -388,7 +399,6 @@ jobs:
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf AnyKernel3/.git
         cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
-        cd AnyKernel3
 
     
     - name: Upload Image
