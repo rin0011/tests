@@ -30,6 +30,17 @@ jobs:
       with:
         swap-size-gb: 10
 
+    # 缓存 apt 包
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: apt-cache-${{ runner.os }}-${{ hashFiles('.github/workflows/blank.yml') }}
+        restore-keys: |
+          apt-cache-${{ runner.os }}-
+
     - name: Setup build kernel environment
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
@@ -105,18 +116,31 @@ jobs:
     - name: Download kernel source
       uses: actions/checkout@v4
       with:
-       repository: brokestar233/android_kernel_common_oneplus_sm8750
-       ref: v4
-       path: kernel_workspace/android-kernel
-       fetch-depth: 0
+        repository: brokestar233/android_kernel_common_oneplus_sm8750
+        ref: v4
+        path: kernel_workspace/android-kernel
+        fetch-depth: 0
 
+    - name: Patch setlocalversion
+      run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
         sed -i 's/OKI/android15-8/g' setlocalversion
 
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
-        git clone https://github.com/ShirkNeko/SukiSU_patch.git
+    - name: Checkout susfs4ksu
+      uses: actions/checkout@v4
+      with:
+        repository: ShirkNeko/susfs4ksu
+        ref: gki-android15-6.6
+        path: kernel_workspace/susfs4ksu
+        fetch-depth: 1
+
+    - name: Checkout SukiSU_patch
+      uses: actions/checkout@v4
+      with:
+        repository: ShirkNeko/SukiSU_patch
+        path: kernel_workspace/SukiSU_patch
+        fetch-depth: 1
         
     - name: Setup KernelSU
       run: |
@@ -229,7 +253,6 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://github.com/HanKuCha/sched_ext.git
         cp -r ./sched_ext/* ./android-kernel/kernel/sched
-        rm -rf ./sched_ext/.git
  
     - name: Add SUSFS Configuration Settings
       run: |
@@ -288,19 +311,19 @@ jobs:
         export LLVM_IAS=1
         export KCFLAGS="-O2 -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
         
-        # 1. 确保工具链可用
+
         echo "===== 验证工具链 ====="
         which clang || { echo "错误: Clang 未找到！"; exit 1; }
         clang --version
         which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
         ld.lld --version
         
-        # 2. 准备构建目录
+
         echo "===== 准备构建目录 ====="
         rm -rf out
         mkdir -p out
         
-        # 3. 创建最小配置
+
         echo "===== 创建最小配置 ====="
         cat > out/.config <<EOF
         CONFIG_KSU=y
@@ -312,23 +335,22 @@ jobs:
         CONFIG_THINLTO=y
         EOF
         
-        # 4. 合并gki_defconfig到当前配置
+
         echo "===== 合并gki_defconfig ====="
         ./scripts/kconfig/merge_config.sh -O out out/.config arch/arm64/configs/gki_defconfig
         
-        # 5. 更新配置
+
         echo "===== 更新配置 ====="
         make O=out ARCH=$ARCH SUBARCH=$SUBARCH olddefconfig
         
-        # 6. 验证关键配置
+
         echo "===== 关键配置状态 ====="
         ./scripts/config --file out/.config -s LTO_CLANG
         ./scripts/config --file out/.config -s LTO_CLANG_THIN
         ./scripts/config --file out/.config -s KSU
         ./scripts/config --file out/.config -s KSU_SUSFS
         
-        # 7. 执行详细构建
-        echo "===== 开始详细构建内核 ====="
+        echo "===== 开始构建内核 ====="
         make -j$(($(nproc --all))) O=out \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
