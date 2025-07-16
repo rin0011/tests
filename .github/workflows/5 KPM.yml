@@ -27,6 +27,17 @@ jobs:
       with:
         swap-size-gb: 10
 
+    - name: Cache APT packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: apt-cache-${{ runner.os }}-${{ hashFiles('.github/workflows/blank.yml') }}
+        restore-keys: |
+          apt-cache-${{ runner.os }}-
+
+
     - name: Setup build kernel environment
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
@@ -100,17 +111,32 @@ jobs:
         rm -f "${CLANG_VERSION}.tar.gz"
         
     - name: Download kernel source
+      uses: actions/checkout@v4
+      with:
+        repository: brokestar233/android_kernel_common_oneplus_sm8750
+        ref: v4
+        path: kernel_workspace/android-kernel
+
+    - name: Patch setlocalversion
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --recursive https://github.com/brokestar233/android_kernel_common_oneplus_sm8750 -b v5 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
         sed -i 's/OKI/android15-8/g' setlocalversion
 
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
-        git clone https://github.com/ShirkNeko/SukiSU_patch.git
-        
+    - name: Checkout susfs4ksu
+      uses: actions/checkout@v4
+      with:
+        repository: ShirkNeko/susfs4ksu
+        ref: gki-android15-6.6
+        path: kernel_workspace/susfs4ksu
+
+
+    - name: Checkout SukiSU_patch
+      uses: actions/checkout@v4
+      with:
+        repository: ShirkNeko/SukiSU_patch
+        path: kernel_workspace/SukiSU_patch
+
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel

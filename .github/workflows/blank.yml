@@ -119,7 +119,6 @@ jobs:
         repository: brokestar233/android_kernel_common_oneplus_sm8750
         ref: v4
         path: kernel_workspace/android-kernel
-        fetch-depth: 0
 
     - name: Patch setlocalversion
       run: |
@@ -133,14 +132,14 @@ jobs:
         repository: ShirkNeko/susfs4ksu
         ref: gki-android15-6.6
         path: kernel_workspace/susfs4ksu
-        fetch-depth: 1
+
 
     - name: Checkout SukiSU_patch
       uses: actions/checkout@v4
       with:
         repository: ShirkNeko/SukiSU_patch
         path: kernel_workspace/SukiSU_patch
-        fetch-depth: 1
+
         
     - name: Setup KernelSU
       run: |
