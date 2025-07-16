@@ -375,7 +375,7 @@ jobs:
       run: |
         cd kernel_workspace
         cp ./SukiSU_patch/kpm/patch_linux ./android-kernel/out/arch/arm64/boot/
-        cd ./android-kernel/out/arch/arm64/boot/Image
+        cd ./android-kernel/out/arch/arm64/boot/
         chmod +x patch_linux
         ./patch_linux
         rm -f Image
