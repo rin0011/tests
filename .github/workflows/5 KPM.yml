@@ -387,7 +387,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf AnyKernel3/.git
-        cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
+        cp android-kernel/out/arch/arm64/boot/Image ./AnyKernel3/
 
     
     - name: Upload Image
