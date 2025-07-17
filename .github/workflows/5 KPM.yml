@@ -401,5 +401,5 @@ jobs:
       if: env.CHECK_IMAGE == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: AnyKernel3
-        path: ./AnyKernel3/*
+        name: AnyKernel3-${{ env.KSUVER }}
+        path: kernel_workspace/AnyKernel3
