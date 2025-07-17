@@ -27,17 +27,6 @@ jobs:
       with:
         swap-size-gb: 10
 
-    # 缓存 apt 缓存目录
-    - name: Cache APT packages
-      uses: actions/cache@v4
-      with:
-       path: |
-        /var/cache/apt/archives
-        /var/lib/apt/lists
-       key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/blank.yml') }}
-       restore-keys: |
-        apt-${{ runner.os }}-
-
 
     - name: Setup build kernel environment
       run: |
@@ -412,5 +401,5 @@ jobs:
       if: env.CHECK_IMAGE == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: AnyKernel3-${{ env.KSUVER }}
-        path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
+        name: AnyKernel3
+        path: ./AnyKernel3/*
