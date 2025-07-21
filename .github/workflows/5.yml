@@ -145,16 +145,32 @@ jobs:
           tar -C clang-aosp -zxvf "${CLANG_VERSION}.tar.gz"
           rm -f "${CLANG_VERSION}.tar.gz"
 
+      # 修复缩进从这里开始
       - name: Download kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
+          ref: v5
+          path: kernel_workspace/android-kernel
+
+      - name: Patch setlocalversion
         run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
-          git clone --recursive https://github.com/brokestar233/android_kernel_common_oneplus_sm8750 -b v3 android-kernel --depth=1
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
           sed -i 's/OKI/android15-8/g' setlocalversion
-          cd $GITHUB_WORKSPACE/kernel_workspace
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
-          git clone https://github.com/ShirkNeko/SukiSU_patch.git
+
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
+
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
 
       - name: Setup KernelSU
         run: |

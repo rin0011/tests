@@ -64,7 +64,7 @@ jobs:
        current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
        echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
-    # 缓存ccache目录
+
     - name: Cache ccache
       uses: actions/cache@v4
       with:
@@ -104,7 +104,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: brokestar233/android_kernel_common_oneplus_sm8750
-        ref: v4
+        ref: v5
         path: kernel_workspace/android-kernel
 
     - name: Patch setlocalversion
@@ -130,8 +130,8 @@ jobs:
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
-        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count susfs-main) + 10700)
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10700)
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
         
