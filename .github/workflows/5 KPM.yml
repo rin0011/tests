@@ -339,7 +339,7 @@ jobs:
         
         # 7. 执行详细构建
         echo "===== 开始详细构建内核 ====="
-        make -j$(($(nproc --all))) O=out \
+        make O=out -j$(nproc --all) \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
             HEADER_ARCH=$HEADER_ARCH \

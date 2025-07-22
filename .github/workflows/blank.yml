@@ -340,7 +340,7 @@ jobs:
         ./scripts/config --file out/.config -s KSU_SUSFS
         
         echo "===== 开始构建内核 ====="
-        make -j$(($(nproc --all))) O=out \
+        make O=out -j$(nproc --all) \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
             HEADER_ARCH=$HEADER_ARCH \
