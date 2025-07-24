@@ -107,7 +107,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: brokestar233/android_kernel_common_oneplus_sm8750
-        ref: v5
+        ref: v6
         path: kernel_workspace/android-kernel
 
     - name: Patch setlocalversion
