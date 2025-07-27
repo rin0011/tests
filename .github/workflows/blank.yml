@@ -84,13 +84,13 @@ jobs:
         path: ${{ github.workspace }}/kernel_workspace/clang-aosp
         key: ${{ env.CLANG_VERSION }}
 
-    - name: Download & extract Clang-aosp using aria2
+    - name: Download & extract Clang-aosp
       if: steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir -p clang-aosp
         
-        DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel/${CLANG_VERSION}.tar.gz"
+        DOWNLOAD_URL="https://git.codelinaro.org/clo/la/kernel_platform/prebuilts/clang-tools/-/archive/ks-kernel.lnx.4.0.r10-rel/clang-tools-ks-kernel.lnx.4.0.r10-rel.tar.gz"
         echo "下载链接: $DOWNLOAD_URL"
         
         aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
