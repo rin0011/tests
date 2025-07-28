@@ -90,7 +90,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir -p clang-aosp
         
-        DOWNLOAD_URL="https://git.codelinaro.org/clo/la/kernel_platform/prebuilts/clang-tools/-/archive/ks-kernel.lnx.4.0.r10-rel/clang-tools-ks-kernel.lnx.4.0.r10-rel.tar.gz"
+        DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel/${CLANG_VERSION}.tar.gz"
         echo "下载链接: $DOWNLOAD_URL"
         
         aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
