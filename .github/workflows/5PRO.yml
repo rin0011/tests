@@ -88,7 +88,9 @@ jobs:
       if: steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --depth=1 --branch aosp-new/main-kernel/clang-r530567 https://git.codelinaro.org/clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git clang-aosp
+        mkdir -p clang-aosp
+        wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+        tar -C clang-aosp -zxvf zyclang.tar.gz
 
     - name: Download kernel source
       uses: actions/checkout@v4
@@ -117,7 +119,7 @@ jobs:
         repository: ShirkNeko/SukiSU_patch
         path: kernel_workspace/SukiSU_patch
 
-        
+
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
