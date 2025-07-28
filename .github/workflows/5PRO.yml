@@ -1,6 +1,11 @@
-name: Build android15-6.6-5PRO
+name: Build 5pro
+
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
+
 env:
   TZ: Asia/Shanghai
   CCACHE_DIR: ${{ github.workspace }}/ccache
@@ -12,21 +17,25 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: clang-r547379
-    
+      CLANG_VERSION: clang-r530567
+    permissions:
+      contents: write
+      actions: read
+
     steps:
     - uses: actions/checkout@v4
-      
+
     - name: Set swap to 10G
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 10
-    
+
+
     - name: Setup build kernel environment
       run: |
-        echo "BUILD_TIME=$(TZ=Asia/Shanghai date +%y%m%d)" >> $GITHUB_ENV
+        echo "BUILD_TIME=$(TZ=Asia/Shanghai date \"+%y%m%d\")" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install aria2 git dwarves libelf-dev ccache automake flex bison build-essential \
+        sudo apt-get install -y aria2 git dwarves libelf-dev ccache automake flex bison build-essential \
               zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
               libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
@@ -45,13 +54,19 @@ jobs:
         # 显示初始配置
         ccache --show-config
         ccache -z
-    
+
     - name: Configure Git for kernel build
       run: |
-        git config --global user.email "action@github.com"
-        git config --global user.name "GitHub Action"
-        git config --global advice.addEmbeddedRepo false
-    
+       git config --global user.email "action@github.com"
+       git config --global user.name "GitHub Action"
+       git config --global advice.addEmbeddedRepo false
+
+    - name: Setup build date
+      id: date
+      run: |
+       current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
+       echo "current-date=${current_date}" >> $GITHUB_OUTPUT
+
     # 缓存ccache目录
     - name: Cache ccache
       uses: actions/cache@v4
@@ -61,50 +76,56 @@ jobs:
         restore-keys: |
           ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
           ccache-${{ runner.os }}-
-    
+
     - name: Cache Clang toolchain
       id: cache-clang
       uses: actions/cache@v4
       with:
         path: ${{ github.workspace }}/kernel_workspace/clang-aosp
         key: ${{ env.CLANG_VERSION }}
-    
-    - name: Download & extract Clang-aosp using aria2
+
+    - name: Download & extract Clang-aosp using git clone (from codelinaro)
       if: steps.cache-clang.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        mkdir -p clang-aosp
-        
-        DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"
-        echo "下载链接: $DOWNLOAD_URL"
-        
-        aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
-        
-        if [ ! -f "${CLANG_VERSION}.tar.gz" ]; then
-            echo "错误: 下载失败！"
-            exit 1
-        fi
-        
-        tar -C clang-aosp -zxvf "${CLANG_VERSION}.tar.gz"
-        rm -f "${CLANG_VERSION}.tar.gz"
-    
+        git clone --depth=1 --branch aosp-new/main-kernel/clang-r530567 https://git.codelinaro.org/clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86.git clang-aosp
+
     - name: Download kernel source
+      uses: actions/checkout@v4
+      with:
+        repository: brokestar233/android_kernel_common_oneplus_sm8750
+        ref: v7
+        path: kernel_workspace/android-kernel
+
+    - name: Patch setlocalversion
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone --recursive https://github.com/schqiushui/android_kernel_common_oneplus_sm8750 -b android15-6.6 android-kernel --depth=1
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
         sed -i 's/ -dirty//g' setlocalversion
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android15-6.6
-        git clone https://github.com/ShirkNeko/SukiSU_patch.git
-    
+        sed -i 's/OKI/android15-8/g' setlocalversion
+
+    - name: Checkout susfs4ksu
+      uses: actions/checkout@v4
+      with:
+        repository: ShirkNeko/susfs4ksu
+        ref: gki-android15-6.6
+        path: kernel_workspace/susfs4ksu
+
+
+    - name: Checkout SukiSU_patch
+      uses: actions/checkout@v4
+      with:
+        repository: ShirkNeko/SukiSU_patch
+        path: kernel_workspace/SukiSU_patch
+
+        
     - name: Setup KernelSU
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-main
-        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count main) + 10606)
-        echo "KSUVER=KSU_$KSU_VERSION" >> $GITHUB_ENV
-    
+        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
+        KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count susfs-main) + 10700)
+        echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+        sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+        
     - name: Setup susfs
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -116,8 +137,8 @@ jobs:
         
         # 应用补丁
         patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-        patch -p1 -F 3 < syscall_hooks.patch
-    
+        patch -p1 -F 3 < syscall_hooks.patch || true
+
     - name: Apply HMBird GKI patch
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
@@ -134,25 +155,25 @@ jobs:
             struct device_node *ver_np;
             const char *type;
             int ret;
-            
+        
             ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
             if (!ver_np) {
                  pr_info("hmbird_patch: version_type node not found\n");
                  return 0;
             }
-            
+        
             ret = of_property_read_string(ver_np, "type", &type);
             if (ret) {
                  pr_info("hmbird_patch: type property not found\n");
                  of_node_put(ver_np);
                  return 0;
             }
-            
+        
             if (strcmp(type, "HMBIRD_OGKI") != 0) {
                  of_node_put(ver_np);
                  return 0;
             }
-            
+        
             struct property *prop = of_find_property(ver_np, "type", NULL);
             if (prop) {
                  struct property *new_prop = kmalloc(sizeof(*prop), GFP_KERNEL);
@@ -170,7 +191,7 @@ jobs:
                       return -ENOMEM;
                  }
                  new_prop->length = strlen("HMBIRD_GKI") + 1;
-                 
+        
                  if (of_remove_property(ver_np, prop)) {
                       pr_err("hmbird_patch: of_remove_property failed\n");
                       kfree(new_prop->value);
@@ -188,7 +209,7 @@ jobs:
                  pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
             }
             else {
-                 pr_info("hmbird_patch: type property structure not found\n");
+                pr_info("hmbird_patch: type property structure not found\n");
             }
             of_node_put(ver_np);
             return 0;
@@ -208,8 +229,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://github.com/HanKuCha/sched_ext.git
         cp -r ./sched_ext/* ./android-kernel/kernel/sched
-        rm -rf ./sched_ext/.git
-    
+ 
     - name: Add SUSFS Configuration Settings
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -238,10 +258,12 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
-    
-    - name: Build kernel with detailed logging
+        echo "CONFIG_LOCALVERSION=\"-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
+
+    - name: Build kernel
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+
         export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
         
         # 配置ccache环境变量
@@ -260,24 +282,24 @@ jobs:
         export HEADER_ARCH=arm64
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
         export KBUILD_BUILD_HOST=Github-Action
-        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
         export LLVM=1
         export LLVM_IAS=1
         export KCFLAGS="-O2 -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
         
-        # 1. 确保工具链可用
+
         echo "===== 验证工具链 ====="
         which clang || { echo "错误: Clang 未找到！"; exit 1; }
         clang --version
         which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
         ld.lld --version
         
-        # 2. 准备构建目录
+
         echo "===== 准备构建目录 ====="
         rm -rf out
         mkdir -p out
         
-        # 3. 创建最小配置
+
         echo "===== 创建最小配置 ====="
         cat > out/.config <<EOF
         CONFIG_KSU=y
@@ -289,24 +311,23 @@ jobs:
         CONFIG_THINLTO=y
         EOF
         
-        # 4. 合并gki_defconfig到当前配置
+
         echo "===== 合并gki_defconfig ====="
         ./scripts/kconfig/merge_config.sh -O out out/.config arch/arm64/configs/gki_defconfig
         
-        # 5. 更新配置
+
         echo "===== 更新配置 ====="
         make O=out ARCH=$ARCH SUBARCH=$SUBARCH olddefconfig
         
-        # 6. 验证关键配置
+
         echo "===== 关键配置状态 ====="
         ./scripts/config --file out/.config -s LTO_CLANG
         ./scripts/config --file out/.config -s LTO_CLANG_THIN
         ./scripts/config --file out/.config -s KSU
         ./scripts/config --file out/.config -s KSU_SUSFS
         
-        # 7. 执行详细构建
-        echo "===== 开始详细构建内核 ====="
-        make -j$(($(nproc --all))) O=out \
+        echo "===== 开始构建内核 ====="
+        make O=out -j$(nproc --all) \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
             HEADER_ARCH=$HEADER_ARCH \
@@ -337,7 +358,7 @@ jobs:
             tail -n 100 android-kernel/out/build.log || true
             exit 1
         fi
-    
+      
     - name: Make Anykernel3
       if: env.CHECK_IMAGE == 'true'
       run: |
@@ -345,6 +366,10 @@ jobs:
         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
         rm -rf AnyKernel3/.git
         cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
+        cd AnyKernel3
+        zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
+        mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
+
     
     - name: Upload Image
       if: env.CHECK_IMAGE == 'true'
@@ -352,10 +377,32 @@ jobs:
       with:
         name: Image-${{ env.KSUVER }}
         path: kernel_workspace/android-kernel/out/arch/arm64/boot/Image
-    
+
     - name: Upload AnyKernel3
       if: env.CHECK_IMAGE == 'true'
       uses: actions/upload-artifact@v4
       with:
-        name: AK3-${{ env.KSUVER }}-${{ env.BUILD_TIME }}
-        path: kernel_workspace/AnyKernel3/*
+        name: AnyKernel3-${{ env.KSUVER }}
+        path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
+
+    - name: Create Release and Upload Assets
+      uses: softprops/action-gh-release@v2
+      if: ${{ success() }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.KSUVER }}
+        name: "sukisu ${{ env.KSUVER }}"
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'rc') }}
+        generate_release_notes: true
+        body: |
+          **Build Details**
+          - KernelSU Version: ${{ env.KSUVER }}
+          - Build Date: ${{ steps.date.outputs.current-date }}
+          **Build Environment:**
+          - OS: ubuntu-latest
+          - Clang Version: ${{ env.CLANG_VERSION }}
+        files: |
+          AnyKernel3-${{ env.KSUVER }}.zip
+          kernel_workspace/android-kernel/out/arch/arm64/boot/Image
