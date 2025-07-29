@@ -23,7 +23,7 @@ jobs:
       actions: read
 
     steps:
-    - uses: actions/checkout@latest
+    - uses: actions/checkout@v4
 
     - name: Set swap to 10G
       uses: pierotofy/set-swap-space@master
@@ -93,7 +93,7 @@ jobs:
         tar -C clang-aosp -zxvf zyclang.tar.gz
 
     - name: Download kernel source
-      uses: actions/checkout@latest
+      uses: actions/checkout@v4
       with:
         repository: brokestar233/android_kernel_common_oneplus_sm8750
         ref: v7
@@ -106,7 +106,7 @@ jobs:
         sed -i 's/OKI/android15-8/g' setlocalversion
 
     - name: Checkout susfs4ksu
-      uses: actions/checkout@latest
+      uses: actions/checkout@v4
       with:
         repository: ShirkNeko/susfs4ksu
         ref: gki-android15-6.6
@@ -114,7 +114,7 @@ jobs:
 
 
     - name: Checkout SukiSU_patch
-      uses: actions/checkout@latest
+      uses: actions/checkout@v4
       with:
         repository: ShirkNeko/SukiSU_patch
         path: kernel_workspace/SukiSU_patch
