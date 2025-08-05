@@ -295,25 +295,10 @@ jobs:
         clang --version
         which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
         ld.lld --version
-
-        echo "===== 创建最小配置 ====="
-        cat > out/.config <<EOF
-        CONFIG_KSU=y
-        CONFIG_KSU_SUSFS=y
-        CONFIG_LTO_CLANG=y
-        CONFIG_LTO_NONE=n
-        CONFIG_LTO_CLANG_THIN=y
-        CONFIG_LTO_CLANG_FULL=n
-        CONFIG_THINLTO=y
-        EOF
-        
-
-        echo "===== 合并gki_defconfig ====="
-        ./scripts/kconfig/merge_config.sh -O out out/.config arch/arm64/configs/gki_defconfig
         
 
         echo "===== 更新配置 ====="
-        make O=out ARCH=$ARCH SUBARCH=$SUBARCH olddefconfig
+        make O=out ARCH=$ARCH SUBARCH=$SUBARCH gkidefconfig
         
 
         echo "===== 关键配置状态 ====="
