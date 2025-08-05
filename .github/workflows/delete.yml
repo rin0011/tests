@@ -10,7 +10,7 @@ on:
       workflow_name:
         description: '清理的工作流名称'
         required: true
-        default: 'OPlus Kernel'
+        default: 'Build '
       count:
         description: '检查的最多运行次数'
         required: false

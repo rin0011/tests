@@ -104,7 +104,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: brokestar233/android_kernel_common_oneplus_sm8750
-        ref: v5
+        ref: v9
         path: kernel_workspace/android-kernel
 
     - name: Patch setlocalversion
@@ -305,41 +305,11 @@ jobs:
         which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
         ld.lld --version
         
-        # 2. 准备构建目录
-        echo "===== 准备构建目录 ====="
-        rm -rf out
-        mkdir -p out
+   
+        make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
         
-        # 3. 创建最小配置
-        echo "===== 创建最小配置 ====="
-        cat > out/.config <<EOF
-        CONFIG_KSU=y
-        CONFIG_KSU_SUSFS=y
-        CONFIG_LTO_CLANG=y
-        CONFIG_LTO_NONE=n
-        CONFIG_LTO_CLANG_THIN=y
-        CONFIG_LTO_CLANG_FULL=n
-        CONFIG_THINLTO=y
-        EOF
-        
-        # 4. 合并gki_defconfig到当前配置
-        echo "===== 合并gki_defconfig ====="
-        ./scripts/kconfig/merge_config.sh -O out out/.config arch/arm64/configs/gki_defconfig
-        
-        # 5. 更新配置
-        echo "===== 更新配置 ====="
-        make O=out ARCH=$ARCH SUBARCH=$SUBARCH olddefconfig
-        
-        # 6. 验证关键配置
-        echo "===== 关键配置状态 ====="
-        ./scripts/config --file out/.config -s LTO_CLANG
-        ./scripts/config --file out/.config -s LTO_CLANG_THIN
-        ./scripts/config --file out/.config -s KSU
-        ./scripts/config --file out/.config -s KSU_SUSFS
-        
-        # 7. 执行详细构建
-        echo "===== 开始详细构建内核 ====="
-        make O=out -j$(nproc --all) \
+        echo "===== 开始构建内核 ====="
+        make -s O=out -j$(nproc --all) \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
             HEADER_ARCH=$HEADER_ARCH \
