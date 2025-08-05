@@ -296,16 +296,7 @@ jobs:
         which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
         ld.lld --version
         
-
-        echo "===== 更新配置 ====="
-        make O=out ARCH=$ARCH SUBARCH=$SUBARCH gkidefconfig
-        
-
-        echo "===== 关键配置状态 ====="
-        ./scripts/config --file out/.config -s LTO_CLANG
-        ./scripts/config --file out/.config -s LTO_CLANG_THIN
-        ./scripts/config --file out/.config -s KSU
-        ./scripts/config --file out/.config -s KSU_SUSFS
+        make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
         
         echo "===== 开始构建内核 ====="
         make -s O=out -j$(nproc --all) \
