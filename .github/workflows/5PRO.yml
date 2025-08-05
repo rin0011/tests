@@ -297,7 +297,7 @@ jobs:
         ld.lld --version
         
         echo "===== 开始构建内核 ====="
-        make O=out -js$(nproc --all) \
+        make O=out -s -j$(nproc --all) \
             ARCH=$ARCH \
             SUBARCH=$SUBARCH \
             HEADER_ARCH=$HEADER_ARCH \
