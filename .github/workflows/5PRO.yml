@@ -44,11 +44,13 @@ jobs:
                 libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
           mkdir -p $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p "${{ env.CCACHE_DIR }}"
+          # 配置ccache
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
           ccache --set-config=compression=true
           ccache --set-config=compression_level=6
           ccache --set-config=hash_dir=false
+          # 优化sloppiness配置, 避免文件元数据变化导致缓存失效
           ccache --set-config=sloppiness=file_macro,locale,time_macros
           ccache --show-config
           ccache -z
@@ -180,26 +182,29 @@ jobs:
                    return 0;
               }
 
-              // property 替换流程修正&内存管理改进
+              // property 替换流程修正&内存管理改进: 使用kzalloc确保清零并避免浅拷贝问题
               struct property *prop = of_find_property(ver_np, "type", NULL);
               if (prop) {
+                   // 分配新的属性结构体内存，并初始化为零
                    struct property *new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
                    if (!new_prop) {
-                        pr_err("hmbird_patch: kmalloc for new_prop failed\n");
+                        pr_err("hmbird_patch: kzalloc for new_prop failed\n");
                         of_node_put(ver_np);
                         return -ENOMEM;
                    }
-                   new_prop->name = prop->name;
-                   new_prop->length = strlen("HMBIRD_GKI") + 1;
+                   new_prop->name = prop->name; // 复制属性名指针，通常是静态字符串
+                   new_prop->length = strlen("HMBIRD_GKI") + 1; // 新值的长度
+                   // 为新的属性值分配内存
                    new_prop->value = kzalloc(new_prop->length, GFP_KERNEL);
                    if (!new_prop->value) {
-                        pr_err("hmbird_patch: kmalloc for new_prop->value failed\n");
-                        kfree(new_prop);
+                        pr_err("hmbird_patch: kzalloc for new_prop->value failed\n");
+                        kfree(new_prop); // 释放已分配的new_prop
                         of_node_put(ver_np);
                         return -ENOMEM;
                    }
-                   strcpy(new_prop->value, "HMBIRD_GKI");
+                   strcpy(new_prop->value, "HMBIRD_GKI"); // 拷贝新值
 
+                   // 移除旧属性
                    if (of_remove_property(ver_np, prop)) {
                         pr_err("hmbird_patch: of_remove_property failed\n");
                         kfree(new_prop->value);
@@ -207,6 +212,7 @@ jobs:
                         of_node_put(ver_np);
                         return -EINVAL;
                    }
+                   // 添加新属性
                    if (of_add_property(ver_np, new_prop)) {
                         pr_err("hmbird_patch: of_add_property failed\n");
                         kfree(new_prop->value);
@@ -249,6 +255,7 @@ jobs:
               exit 1
           fi
 
+          # 优化：使用cat here-doc方式添加多行配置，更简洁
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS_SUS_SU=n
@@ -269,7 +276,7 @@ jobs:
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_LOCALVERSION="-g013ec21bba94-abogki383916444-4k"
-          EOF
+EOF
 
       # 18. Kernel 编译
       - name: Build kernel
@@ -278,7 +285,9 @@ jobs:
 
           export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
-          export CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
+          # 移除 CCACHE_SLOPPINESS 环境变量设置，让 ccache 使用其自身配置的 sloppiness 值
+          # 这样可以避免因文件元数据 (ctime/mtime) 变化导致缓存不命中的问题
+          # export CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime" # 此行已移除
           export CCACHE_CPP2=yes
           export CCACHE_NOHASHDIR=yes
           export CC="ccache clang"
