@@ -91,7 +91,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/${CLANG_VERSION}-release/Clang-${CLANG_VERSION}.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
       # 9. 获取kernel源码
