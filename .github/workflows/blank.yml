@@ -59,7 +59,6 @@ jobs:
       run: |
        git config --global user.email "action@github.com"
        git config --global user.name "GitHub Action"
-       git config --global advice.addEmbeddedRepo false
 
     - name: Setup build date
       id: date
@@ -154,88 +153,94 @@ jobs:
 
     - name: Apply HMBird GKI patch
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
-        cat << 'EOF' > hmbird_patch.c
-        #include <linux/init.h>
-        #include <linux/module.h>
-        #include <linux/of.h>
-        #include <linux/slab.h>
-        #include <linux/string.h>
-        #include <linux/printk.h>
-        
-        static int __init hmbird_patch_init(void)
-        {
-            struct device_node *ver_np;
-            const char *type;
-            int ret;
-        
-            ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
-            if (!ver_np) {
-                 pr_info("hmbird_patch: version_type node not found\n");
-                 return 0;
-            }
-        
-            ret = of_property_read_string(ver_np, "type", &type);
-            if (ret) {
-                 pr_info("hmbird_patch: type property not found\n");
-                 of_node_put(ver_np);
-                 return 0;
-            }
-        
-            if (strcmp(type, "HMBIRD_OGKI") != 0) {
-                 of_node_put(ver_np);
-                 return 0;
-            }
-        
-            struct property *prop = of_find_property(ver_np, "type", NULL);
-            if (prop) {
-                 struct property *new_prop = kmalloc(sizeof(*prop), GFP_KERNEL);
-                 if (!new_prop) {
-                      pr_err("hmbird_patch: kmalloc for new_prop failed\n");
-                      of_node_put(ver_np);
-                      return -ENOMEM;
-                 }
-                 memcpy(new_prop, prop, sizeof(*prop));
-                 new_prop->value = kstrdup("HMBIRD_GKI", GFP_KERNEL);
-                 if (!new_prop->value) {
-                      pr_err("hmbird_patch: kmalloc for new_prop->value failed\n");
-                      kfree(new_prop);
-                      of_node_put(ver_np);
-                      return -ENOMEM;
-                 }
-                 new_prop->length = strlen("HMBIRD_GKI") + 1;
-        
-                 if (of_remove_property(ver_np, prop)) {
-                      pr_err("hmbird_patch: of_remove_property failed\n");
-                      kfree(new_prop->value);
-                      kfree(new_prop);
-                      of_node_put(ver_np);
-                      return -EINVAL;
-                 }
-                 if (of_add_property(ver_np, new_prop)) {
-                      pr_err("hmbird_patch: of_add_property failed\n");
-                      kfree(new_prop->value);
-                      kfree(new_prop);
-                      of_node_put(ver_np);
-                      return -EINVAL;
-                 }
-                 pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
-            }
-            else {
-                pr_info("hmbird_patch: type property structure not found\n");
-            }
-            of_node_put(ver_np);
-            return 0;
-        }
-        early_initcall(hmbird_patch_init);
-        MODULE_LICENSE("GPL");
-        MODULE_AUTHOR("reigadegr");
-        MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
-        EOF
-        
-        if ! grep -q "hmbird_patch.o" Makefile; then
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
+          cat << 'EOF' > hmbird_patch.c
+          #include <linux/init.h>
+          #include <linux/module.h>
+          #include <linux/of.h>
+          #include <linux/slab.h>
+          #include <linux/string.h>
+          #include <linux/printk.h>
+
+          static int __init hmbird_patch_init(void)
+          {
+              struct device_node *ver_np;
+              const char *type;
+              int ret;
+
+              ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
+              if (!ver_np) {
+                   pr_info("hmbird_patch: version_type node not found\n");
+                   return 0;
+              }
+
+              ret = of_property_read_string(ver_np, "type", &type);
+              if (ret) {
+                   pr_info("hmbird_patch: type property not found\n");
+                   of_node_put(ver_np);
+                   return 0;
+              }
+
+              if (strcmp(type, "HMBIRD_OGKI") != 0) {
+                   of_node_put(ver_np);
+                   return 0;
+              }
+
+              // property 替换流程修正&内存管理改进: 使用kzalloc确保清零并避免浅拷贝问题
+              struct property *prop = of_find_property(ver_np, "type", NULL);
+              if (prop) {
+                   // 分配新的属性结构体内存，并初始化为零
+                   struct property *new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+                   if (!new_prop) {
+                        pr_err("hmbird_patch: kzalloc for new_prop failed\n");
+                        of_node_put(ver_np);
+                        return -ENOMEM;
+                   }
+                   new_prop->name = prop->name; // 复制属性名指针，通常是静态字符串
+                   new_prop->length = strlen("HMBIRD_GKI") + 1; // 新值的长度
+                   // 为新的属性值分配内存
+                   new_prop->value = kzalloc(new_prop->length, GFP_KERNEL);
+                   if (!new_prop->value) {
+                        pr_err("hmbird_patch: kzalloc for new_prop->value failed\n");
+                        kfree(new_prop); // 释放已分配的new_prop
+                        of_node_put(ver_np);
+                        return -ENOMEM;
+                   }
+                   strcpy(new_prop->value, "HMBIRD_GKI"); // 拷贝新值
+
+                   // 移除旧属性
+                   if (of_remove_property(ver_np, prop)) {
+                        pr_err("hmbird_patch: of_remove_property failed\n");
+                        kfree(new_prop->value);
+                        kfree(new_prop);
+                        of_node_put(ver_np);
+                        return -EINVAL;
+                   }
+                   // 添加新属性
+                   if (of_add_property(ver_np, new_prop)) {
+                        pr_err("hmbird_patch: of_add_property failed\n");
+                        kfree(new_prop->value);
+                        kfree(new_prop);
+                        of_node_put(ver_np);
+                        return -EINVAL;
+                   }
+                   pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
+              }
+              else {
+                  pr_info("hmbird_patch: type property structure not found\n");
+              }
+              of_node_put(ver_np);
+              return 0;
+          }
+          early_initcall(hmbird_patch_init);
+          MODULE_LICENSE("GPL");
+          MODULE_AUTHOR("reigadegr");
+          MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
+          EOF
+
+          if ! grep -q "hmbird_patch.o" Makefile; then
             echo "obj-y += hmbird_patch.o" >> Makefile
-        fi
+          fi
     
     - name: scx
       run: |

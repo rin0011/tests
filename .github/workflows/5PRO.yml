@@ -93,6 +93,7 @@ jobs:
           mkdir -p clang-aosp
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
+          
       # 9. 获取kernel源码
       - name: Download kernel source
         uses: actions/checkout@v4
