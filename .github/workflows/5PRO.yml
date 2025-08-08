@@ -93,7 +93,7 @@ jobs:
           mkdir -p clang-aosp
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
-          
+
       # 9. 获取kernel源码
       - name: Download kernel source
         uses: actions/checkout@v4
@@ -296,8 +296,8 @@ jobs:
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
-          export KBUILD_BUILD_HOST=Github-Action
-          export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+          export KBUILD_BUILD_HOST=builder@localhost
+          export KBUILD_BUILD_USER=Local Builder
           export LLVM=1
           export LLVM_IAS=1
           export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
@@ -311,7 +311,7 @@ jobs:
 
           mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
 
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig all
 
           echo "===== 开始构建内核 ====="
           make -s O=out -j$(nproc --all) \
