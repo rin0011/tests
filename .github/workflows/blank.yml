@@ -17,7 +17,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: clang-r536225
+      CLANG_VERSION: clang-r530567
     permissions:
       contents: write
       actions: read
@@ -329,7 +329,6 @@ jobs:
             OBJDUMP=llvm-objdump \
             READELF=llvm-readelf \
             OBJSIZE=llvm-size \
-            STRIP=llvm-strip \
             STRIP=llvm-strip \
             KCFLAGS="$KCFLAGS" \
             LDFLAGS="$LDFLAGS"
