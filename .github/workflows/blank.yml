@@ -17,7 +17,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: clang-r530567
+      CLANG_VERSION: clang-r536225
     permissions:
       contents: write
       actions: read
@@ -90,7 +90,7 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir -p clang-aosp
         
-        DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel/${CLANG_VERSION}.tar.gz"
+        DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main${CLANG_VERSION}.tar.gz"
         echo "下载链接: $DOWNLOAD_URL"
         
         aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
@@ -271,6 +271,8 @@ jobs:
         echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
+        echo "CONFIG_LTO=y" >> arch/arm64/configs/gki_defconfig
+        echo "CONFIG_THIN_ARCHIVES=y" >> arch/arm64/configs/gki_defconfig
         echo "CONFIG_LOCALVERSION=\"-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
 
     - name: Build kernel
@@ -298,7 +300,8 @@ jobs:
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
         export LLVM=1
         export LLVM_IAS=1
-        export KCFLAGS="-O2 -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+        export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+        export LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
         
 
         echo "===== 验证工具链 ====="
@@ -306,6 +309,8 @@ jobs:
         clang --version
         which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
         ld.lld --version
+
+        mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
 
         echo "===== 更新配置 ====="
         make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
@@ -324,7 +329,10 @@ jobs:
             OBJDUMP=llvm-objdump \
             READELF=llvm-readelf \
             OBJSIZE=llvm-size \
-            STRIP=llvm-strip
+            STRIP=llvm-strip \
+            STRIP=llvm-strip \
+            KCFLAGS="$KCFLAGS" \
+            LDFLAGS="$LDFLAGS"
         
         # 显示ccache统计
         ccache -s
