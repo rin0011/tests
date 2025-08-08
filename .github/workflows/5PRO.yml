@@ -242,30 +242,65 @@ jobs:
           git clone https://github.com/HanKuCha/sched_ext.git
           cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
+      # 修复 KSM 配置问题
       - name: Fix KSM configuration in Kconfig files
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           
           # 修复 KSM 配置
-          sed -i '/^config UKSM$/,/^endchoice$/ {
-              /^config UKSM$/ {
-                  i\
-          choice\
-            prompt "KSM implementation"\
-            default UKSM
-                        }
-                        /^	default y$/d
-                        /^config KSM_LEGACY$/ {
-                            i\
-          endchoice\
-          \
-          choice\
-            prompt "KSM implementation"\
-            default UKSM
-                            N
-                            s/^	default n$//
-                        }
-                    }' mm/Kconfig
+          sed -i '/^choice$/,/^endchoice$/ {
+              # 移除 choice 块中的无效默认值
+              /^\s*default [yn]$/d
+              
+              # 移除选项中的重复依赖
+              /^\s*depends on KSM$/d
+              
+              # 增强帮助文本
+              /^\s*help$/ {
+                  N
+                  N
+                  N
+                  N
+                  N
+                  c\
+          help\
+            Select the KSM implementation strategy:\
+            \
+            - Ultra-KSM (UKSM): Advanced algorithm with improved scan speed and CPU efficiency\
+            - Legacy KSM: Original implementation from Red Hat\
+            \
+            UKSM is recommended for most use cases as it provides better performance\
+            while maintaining compatibility with KVM and other applications.
+                      }
+                  }' mm/Kconfig  # 根据实际文件路径调整
+                  
+                  # 修复 UKSM 帮助文本
+                  sed -i '/^config UKSM$/,/^$/ {
+                      /^\s*help$/ {
+                          a\
+            UKSM is inspired by the Linux kernel project — KSM(Kernel Same\
+            page Merging), but with a fundamentally rewritten core algorithm. With\
+            an advanced algorithm, UKSM now can transparently scans all anonymously\
+            mapped user space applications with an significantly improved scan speed\
+            and CPU efficiency. Since KVM is friendly to KSM, KVM can also benefit from\
+            UKSM. Now UKSM has its first stable release and first real world enterprise user.\
+            For more information, please goto its project page.\
+            (github.com/dolohow/uksm)
+                          d
+                      }
+                  }' mm/Kconfig
+                  
+                  # 修复 KSM_LEGACY 帮助文本
+                  sed -i '/^config KSM_LEGACY$/,/^$/ {
+                      /^\s*help$/ {
+                          a\
+            The legacy KSM implementation from Red Hat. This is the original\
+            implementation that has been part of the Linux kernel for many years.\
+            It provides basic page merging functionality but may have lower\
+            performance compared to UKSM.
+                          d
+                      }
+                  }' mm/Kconfig
 
       # 17. 添加 SUSFS 配置，如无 defconfig 立即报错
       - name: Add SUSFS Configuration Settings
