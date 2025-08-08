@@ -297,7 +297,7 @@ jobs:
           export HEADER_ARCH=arm64
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
           export KBUILD_BUILD_HOST=builder@localhost
-          export KBUILD_BUILD_USER=Local Builder
+          #export KBUILD_BUILD_USER=Local Builder
           export LLVM=1
           export LLVM_IAS=1
           export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
