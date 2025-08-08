@@ -309,6 +309,10 @@ jobs:
           export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
           export LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
+          unset CLANG_FLAGS
+          unset EXTRA_CFLAGS
+          unset EXTRA_AFLAGS
+
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
           clang --version
