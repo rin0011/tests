@@ -19,7 +19,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: Clang-19.0.0git-20240723
+      CLANG_VERSION: clang-r536225
     permissions:
       contents: write
       actions: read
@@ -91,8 +91,15 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
-          tar -C clang-aosp -zxvf zyclang.tar.gz
+          DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"
+          echo "下载链接: $DOWNLOAD_URL"
+          aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
+          if [ ! -f "${CLANG_VERSION}.tar.gz" ]; then
+            echo "错误: 下载失败！"
+            exit 1
+          fi
+          tar -C clang-aosp -zxvf "${CLANG_VERSION}.tar.gz"
+          rm -f "${CLANG_VERSION}.tar.gz"
 
       # 9. 获取kernel源码
       - name: Download kernel source
