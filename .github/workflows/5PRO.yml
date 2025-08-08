@@ -242,6 +242,31 @@ jobs:
           git clone https://github.com/HanKuCha/sched_ext.git
           cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
+      - name: Fix KSM configuration in Kconfig files
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          
+          # 修复 KSM 配置
+          sed -i '/^config UKSM$/,/^endchoice$/ {
+              /^config UKSM$/ {
+                  i\
+          choice\
+            prompt "KSM implementation"\
+            default UKSM
+                        }
+                        /^	default y$/d
+                        /^config KSM_LEGACY$/ {
+                            i\
+          endchoice\
+          \
+          choice\
+            prompt "KSM implementation"\
+            default UKSM
+                            N
+                            s/^	default n$//
+                        }
+                    }' mm/Kconfig
+
       # 17. 添加 SUSFS 配置，如无 defconfig 立即报错
       - name: Add SUSFS Configuration Settings
         run: |
@@ -273,9 +298,11 @@ jobs:
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_LTO=y
-          CONFIG_LTO_CLANG=y
-          CONFIG_LTO_CLANG_THIN=y
           CONFIG_THIN_ARCHIVES=y
+          CONFIG_CRYPTO_LZ4K=n
+          CONFIG_CRYPTO_LZ4KD=n
+          CONFIG_CRYPTO_LZ4HC=n
+          CONFIG_CRYPTO_842=n
           CONFIG_LOCALVERSION="-g013ec21bba94-abogki383916444-4k"
           EOF
 
