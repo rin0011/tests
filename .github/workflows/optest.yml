@@ -1,12 +1,12 @@
 # .github/workflows/build5pro.yml
 
-name: Build 5pro (xmake)
+name: Build 5pro
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
 
 env:
   TZ: Asia/Shanghai
@@ -16,7 +16,7 @@ env:
 
 jobs:
   build:
-    name: Build Kernel by ${{ github.actor }} (xmake)
+    name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
       CLANG_VERSION: Clang-19.0.0git-20240723
@@ -59,20 +59,28 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace
           cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
+      # 安装 xmake
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+
+      # 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 10
 
+      # 环境准备
       - name: Setup build kernel environment
         run: |
           echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%y%m%d')" >> $GITHUB_ENV
           sudo apt-get update
           sudo apt-get install -y git dwarves libelf-dev ccache automake flex bison build-essential \
                 zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
-                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev \
-                ninja-build python3-pip
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
           mkdir -p "${{ env.CCACHE_DIR }}"
+          # 配置ccache
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
           ccache --set-config=compression=true
@@ -82,26 +90,30 @@ jobs:
           ccache --show-config
           ccache -z
 
+      # 配置 git 用户
       - name: Configure Git for kernel build
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
 
+      # 记录当前日期
       - name: Setup build date
         id: date
         run: |
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
+      # 缓存 ccache
       - name: Cache ccache
         uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
+          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/xmake.lua') }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
             ccache-${{ runner.os }}-
 
+      # 缓存 clang 工具链
       - name: Cache Clang toolchain
         id: cache-clang
         uses: actions/cache@v4
@@ -109,6 +121,7 @@ jobs:
           path: ${{ github.workspace }}/kernel_workspace/clang-aosp
           key: ${{ env.CLANG_VERSION }}
 
+      # 下载并解压 clang 工具链（如未命中缓存）
       - name: Download & extract Clang-aosp
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -117,12 +130,75 @@ jobs:
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
+      # 创建 xmake.lua
+      - name: Create xmake.lua
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          cat << 'EOF' > xmake.lua
+          -- xmake.lua
+          set_project("kernel")
+          set_version("1.0.0")
+          
+          -- 设置工具链
+          toolchain("clang")
+              set_kind("standalone")
+              set_sdkdir("${{ github.workspace }}/kernel_workspace/clang-aosp")
+              set_toolset("cc", "clang")
+              set_toolset("cxx", "clang++")
+              set_toolset("ld", "ld.lld")
+              set_toolset("ar", "llvm-ar")
+              set_toolset("as", "clang")
+          toolchain_end()
+          
+          -- 设置编译选项
+          add_cflags("-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize")
+          add_cxflags("-std=gnu11")
+          add_ldflags("--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache")
+          
+          -- 设置架构
+          set_arch("arm64")
+          set_plat("linux")
+          
+          -- 添加头文件路径
+          add_includedirs("include", "arch/arm64/include")
+          
+          -- 设置编译宏
+          add_defines("CONFIG_KSU=y", 
+                      "CONFIG_KSU_SUSFS=y",
+                      "CONFIG_LTO=y",
+                      "CONFIG_THIN_ARCHIVES=y")
+          
+          -- 创建内核目标
+          target("vmlinux")
+              set_kind("binary")
+              add_files("kernel/*.c", 
+                       "arch/arm64/kernel/*.c", 
+                       "fs/*.c", 
+                       "drivers/*.c",
+                       "mm/*.c",
+                       "init/*.c",
+                       "ipc/*.c",
+                       "security/*.c",
+                       "crypto/*.c",
+                       "lib/*.c",
+                       "net/*.c")
+              add_toolchains("clang")
+              
+          -- 添加模块目标
+          target("hmbird_patch")
+              set_kind("shared")
+              add_files("drivers/hmbird_patch.c")
+              add_toolchains("clang")
+          EOF
+
+      # 修补 setlocalversion
       - name: Patch setlocalversion
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
           sed -i 's/OKI/android15-8/g' setlocalversion
 
+      # 安装 KernelSU
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -131,6 +207,7 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
+      # SUSFS适配及patch
       - name: Setup susfs
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -141,6 +218,7 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           patch -p1 -F 3 < syscall_hooks.patch || true
 
+      # 应用 HMBird GKI patch
       - name: Apply HMBird GKI patch
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
@@ -223,10 +301,7 @@ jobs:
           MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
           EOF
 
-          if ! grep -q "hmbird_patch.o" Makefile; then
-            echo "obj-y += hmbird_patch.o" >> Makefile
-          fi
-
+      # 添加 SUSFS 配置
       - name: Add SUSFS Configuration Settings
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -264,156 +339,65 @@ jobs:
           CONFIG_LOCALVERSION="-g013ec21bba94-abogki383916444-4k"
           EOF
 
-      # 修复xmake安装和配置
-      - name: Install xmake with full dependencies
-        run: |
-          # 确保安装完整版xmake
-          curl -fsSL https://xmake.io/shget.text | bash -s -- --yes
-          ~/.local/bin/xmake --version
-          ~/.local/bin/xmake update -s dev
-          
-          # 添加xmake到PATH
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
+      # 使用 xmake 编译内核
       - name: Build kernel with xmake
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          
-          # 设置环境变量
-          export PATH=$HOME/.local/bin:$PATH
+          export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
+          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CCACHE_CPP2=yes
+          export CCACHE_NOHASHDIR=yes
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
-          export CCACHE_DIR=${{ env.CCACHE_DIR }}
-          export ARCH=arm64
-          export SUBARCH=arm64
-          export HEADER_ARCH=arm64
           export KBUILD_BUILD_HOST=builder@localhost
           export LLVM=1
           export LLVM_IAS=1
-          
-          # 创建xmake配置
-          cat > xmake.lua <<'EOL'
-          target("kernel")
-             set_kind("binary")
-             set_arch("arm64")
-             set_plat("linux")
-             set_toolchains("clang")
-             
-             -- 添加编译标志
-             add_cflags(
-                 "-O2",
-                 "-pipe",
-                 "-fno-strict-aliasing",
-                 "-fno-common",
-                 "-fshort-wchar",
-                 "-fno-PIE",
-                 "-fno-asynchronous-unwind-tables",
-                 "-fno-unwind-tables",
-                 "-fno-delete-null-pointer-checks",
-                 "-fmacro-prefix-map=./=",
-                 "-fstack-protector-strong",
-                 "-fno-allow-store-data-races",
-                 "-fno-omit-frame-pointer",
-                 "-fno-optimize-sibling-calls",
-                 "-fno-var-tracking-assignments",
-                 "-fno-strict-overflow",
-                 "-fconserve-stack",
-                 "-ffunction-sections",
-                 "-fdata-sections",
-                 "-fno-stack-check",
-                 "-flto=thin",
-                 "-fno-vectorize",
-                 "-fno-unroll-loops",
-                 "-fno-slp-vectorize"
-             )
-             
-             -- 添加链接标志
-             add_ldflags(
-                 "-z noexecstack",
-                 "-z relro",
-                 "-z now",
-                 "-z max-page-size=4096",
-                 "--pack-dyn-relocs=relr",
-                 "--use-android-relr-tags",
-                 "--thinlto-cache-dir=" .. os.getenv("CCACHE_DIR") .. "/thinlto-cache"
-             )
-             
-             -- 添加包含目录
-             add_includedirs(
-                 "include",
-                 "arch/arm64/include",
-                 "arch/arm64/include/generated"
-             )
-             
-             -- 添加源文件
-             add_files(
-                 "arch/arm64/kernel/head.S",
-                 "arch/arm64/kernel/**.S",
-                 "arch/arm64/kernel/**.c",
-                 "kernel/**.c",
-                 "fs/**.c",
-                 "drivers/**.c",
-                 "mm/**.c",
-                 "net/**.c",
-                 "ipc/**.c",
-                 "security/**.c",
-                 "init/**.c",
-                 "lib/**.c",
-                 "crypto/**.c",
-                 "block/**.c"
-             )
-             
-             -- 构建前生成配置
-             before_build(function (target)
-                 os.exec("make gki_defconfig")
-             end)
-             
-             -- 构建后复制镜像
-             after_build(function (target)
-                 os.mkdir("out/arch/arm64/boot")
-                 os.cp("build/linux/arm64/release/Image", "out/arch/arm64/boot/Image")
-             end)
-          EOL
-          
-          # 创建thinlto缓存目录
-          mkdir -p "$CCACHE_DIR/thinlto-cache"
-          
-          # 使用xmake构建
-          xmake f -p linux -a arm64 --toolchain=clang -c
-          xmake build -j$(nproc) kernel
-          
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export HEADER_ARCH=arm64
+
+          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
+
+          # 配置 xmake
+          xmake config --toolchain=clang --arch=arm64 --plat=linux
+          xmake build -v -j$(nproc --all)
+
           # 显示ccache统计
           ccache -s
 
+      # 检查编译输出
       - name: Check kernel output files
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
-          if [ -f android-kernel/out/arch/arm64/boot/Image ]; then
+          if [ -f android-kernel/build/linux/arm64/release/vmlinux ]; then
               echo "CHECK_IMAGE=true" >> $GITHUB_ENV
           else
               echo "Kernel output file is empty"
-              echo "===== out/arch/arm64/boot 目录内容 ====="
-              ls -la android-kernel/out/arch/arm64/boot
+              echo "===== build 目录内容 ====="
+              ls -la android-kernel/build/
               exit 1
           fi
 
+      # 打包 AnyKernel3
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
           rm -rf AnyKernel3/.git
-          cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
+          cp android-kernel/build/linux/arm64/release/vmlinux AnyKernel3/Image
           cd AnyKernel3
           zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
           mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
 
+      # 上传 kernel Image
       - name: Upload Image
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Image-${{ env.KSUVER }}
-          path: kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+          path: kernel_workspace/android-kernel/build/linux/arm64/release/vmlinux
 
+      # 上传 AnyKernel3
       - name: Upload AnyKernel3
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
@@ -421,6 +405,7 @@ jobs:
           name: AnyKernel3-${{ env.KSUVER }}
           path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
 
+      # 发布Release并上传产物
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         if: ${{ success() }}
@@ -442,4 +427,4 @@ jobs:
             - Build System: xmake
           files: |
             AnyKernel3-${{ env.KSUVER }}.zip
-            kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+            kernel_workspace/android-kernel/build/linux/arm64/release/vmlinux
