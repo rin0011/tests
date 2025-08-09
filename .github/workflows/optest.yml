@@ -50,7 +50,7 @@ jobs:
       - name: Checkout sched_ext
         uses: actions/checkout@v4
         with:
-          repository: ShirkNeko/sched_ext
+          repository: HanKuCha/sched_ext
           path: kernel_workspace/sched_ext
 
       - name: Copy sched_ext
