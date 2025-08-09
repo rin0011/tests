@@ -25,8 +25,39 @@ jobs:
       actions: read
 
     steps:
-      # 1. Checkout workflow repo
-      - uses: actions/checkout@v4
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
+          ref: v8
+          path: kernel_workspace/android-kernel
+          
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
+          
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
+
+      - name: Checkout sched_ext
+        uses: actions/checkout@v4
+        with:
+          repository: HanKuCha/sched_ext
+          path: kernel_workspace/sched_ext
+
+      - name: Copy sched_ext
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
       # 2. 设置10G swap
       - name: Set swap to 10G
@@ -39,16 +70,15 @@ jobs:
         run: |
           echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%y%m%d')" >> $GITHUB_ENV
           sudo apt-get update
-          sudo apt-get install -y aria2 git dwarves libelf-dev ccache automake flex bison build-essential \
+          sudo apt-get install -y git dwarves libelf-dev ccache automake flex bison build-essential \
                 zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
                 libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
-          mkdir -p $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p "${{ env.CCACHE_DIR }}"
           # 配置ccache
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
           ccache --set-config=compression=true
-          ccache --set-config=compression_level=6
+          ccache --set-config=compression_level=1
           ccache --set-config=hash_dir=false
           ccache --set-config=sloppiness=file_macro,locale,time_macros
           ccache --show-config
@@ -94,13 +124,6 @@ jobs:
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
-      # 9. 获取kernel源码
-      - name: Download kernel source
-        uses: actions/checkout@v4
-        with:
-          repository: brokestar233/android_kernel_common_oneplus_sm8750
-          ref: v8
-          path: kernel_workspace/android-kernel
 
       # 10. 修补 setlocalversion
       - name: Patch setlocalversion
@@ -108,21 +131,6 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
           sed -i 's/OKI/android15-8/g' setlocalversion
-
-      # 11. 拉取 susfs4ksu
-      - name: Checkout susfs4ksu
-        uses: actions/checkout@v4
-        with:
-          repository: ShirkNeko/susfs4ksu
-          ref: gki-android15-6.6
-          path: kernel_workspace/susfs4ksu
-
-      # 12. 拉取 SukiSU_patch
-      - name: Checkout SukiSU_patch
-        uses: actions/checkout@v4
-        with:
-          repository: ShirkNeko/SukiSU_patch
-          path: kernel_workspace/SukiSU_patch
 
       # 13. 安装 KernelSU
       - name: Setup KernelSU
@@ -236,12 +244,6 @@ jobs:
             echo "obj-y += hmbird_patch.o" >> Makefile
           fi
 
-      # 16. 合入 Sched-Ext 组件
-      - name: scx
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
-          git clone https://github.com/HanKuCha/sched_ext.git
-          cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
       - name: Add SUSFS Configuration Settings
         run: |
