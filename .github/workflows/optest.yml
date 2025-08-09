@@ -1,0 +1,394 @@
+name: Build test
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  TZ: Asia/Shanghai
+  CCACHE_DIR: ${{ github.workspace }}/ccache
+  CCACHE_COMPRESS: 1
+  CCACHE_MAXSIZE: 10G
+
+jobs:
+  build:
+    name: Build Kernel by ${{ github.actor }}
+    runs-on: ubuntu-latest
+    env:
+      CLANG_VERSION: Clang-19.0.0git-20240723
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      # 1. Checkout workflow repo (并行执行多个checkout)
+      - name: Checkout main repo
+        uses: actions/checkout@v4
+        
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
+          ref: v8
+          path: kernel_workspace/android-kernel
+          
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
+          
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
+
+      - name: Checkout sched_ext
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/sched_ext
+          path: kernel_workspace/sched_ext
+
+      - name: Copy sched_ext
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          cp -r ./sched_ext/* ./android-kernel/kernel/sched
+          
+      # 2. 设置10G swap
+      - name: Set swap to 10G
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
+
+      # 3. 环境准备 (优化依赖安装顺序)
+      - name: Setup build kernel environment
+        run: |
+          echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%y%m%d')" >> $GITHUB_ENV
+          sudo apt-get update
+          
+          # 优先安装ccache并提前配置
+          sudo apt-get install -y ccache
+          mkdir -p "${{ env.CCACHE_DIR }}"
+          ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
+          ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
+          ccache --set-config=compression=true
+          ccache --set-config=compression_level=1  # 降低压缩级别以提升速度
+          ccache --set-config=hash_dir=false
+          ccache --set-config=sloppiness=file_macro,locale,time_macros
+          ccache --show-config
+          ccache -z
+          
+          # 安装其他依赖
+          sudo apt-get install -y aria2 git dwarves libelf-dev automake flex bison build-essential \
+                zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+                
+          mkdir -p $GITHUB_WORKSPACE/kernel_workspace
+
+      # 4. 配置 git 用户
+      - name: Configure Git for kernel build
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+
+      # 5. 记录当前日期
+      - name: Setup build date
+        id: date
+        run: |
+          current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
+          echo "current-date=${current_date}" >> $GITHUB_OUTPUT
+
+      # 6. 缓存 ccache (优化缓存键)
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild', '**/Makefile') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
+            ccache-${{ runner.os }}-
+
+      # 7. 缓存 clang 工具链
+      - name: Cache Clang toolchain
+        id: cache-clang
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/kernel_workspace/clang-aosp
+          key: ${{ env.CLANG_VERSION }}
+
+      # 8. 下载并解压 clang 工具链 (添加重试机制)
+      - name: Download & extract Clang-aosp
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          mkdir -p clang-aosp
+          for i in {1..3}; do
+            wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz && break
+            sleep 10
+          done
+          tar -C clang-aosp -zxvf zyclang.tar.gz
+
+      # 9. 修补 setlocalversion
+      - name: Patch setlocalversion
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
+          sed -i 's/ -dirty//g' setlocalversion
+          sed -i 's/OKI/android15-8/g' setlocalversion
+
+      # 10. 安装 KernelSU (优化版本获取方式)
+      - name: Setup KernelSU
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
+          KSU_VERSION=$(git -C KernelSU rev-list --count susfs-main | awk '{print $1 + 10700}')
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+
+      # 11. SUSFS适配及patch
+      - name: Setup susfs
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
+          cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+          patch -p1 -F 3 < syscall_hooks.patch || true
+
+      # 12. 应用 HMBird GKI patch (优化内存管理)
+      - name: Apply HMBird GKI patch
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
+          cat << 'EOF' > hmbird_patch.c
+          #include <linux/init.h>
+          #include <linux/module.h>
+          #include <linux/of.h>
+          #include <linux/slab.h>
+          #include <linux/string.h>
+          #include <linux/printk.h>
+
+          static int __init hmbird_patch_init(void)
+          {
+              struct device_node *ver_np;
+              const char *type;
+              int ret;
+
+              ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
+              if (!ver_np) {
+                   pr_info("hmbird_patch: version_type node not found\n");
+                   return 0;
+              }
+
+              ret = of_property_read_string(ver_np, "type", &type);
+              if (ret) {
+                   pr_info("hmbird_patch: type property not found\n");
+                   of_node_put(ver_np);
+                   return 0;
+              }
+
+              if (strcmp(type, "HMBIRD_OGKI") != 0) {
+                   of_node_put(ver_np);
+                   return 0;
+              }
+
+              // 直接修改属性值避免内存分配失败风险
+              struct property *prop = of_find_property(ver_np, "type", NULL);
+              if (prop && prop->value) {
+                  size_t len = strlen("HMBIRD_GKI");
+                  if (kstrdup_const("HMBIRD_GKI", GFP_KERNEL)) {
+                      memcpy(prop->value, "HMBIRD_GKI", len + 1);
+                      prop->length = len + 1;
+                      pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
+                  } else {
+                      pr_err("hmbird_patch: memory allocation failed\n");
+                  }
+              } else {
+                  pr_info("hmbird_patch: type property not found\n");
+              }
+              of_node_put(ver_np);
+              return 0;
+          }
+          early_initcall(hmbird_patch_init);
+          MODULE_LICENSE("GPL");
+          MODULE_AUTHOR("reigadegr");
+          MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
+          EOF
+
+          if ! grep -q "hmbird_patch.o" Makefile; then
+            echo "obj-y += hmbird_patch.o" >> Makefile
+          fi
+
+
+      # 14. 添加配置 (优化配置过程)
+      - name: Add SUSFS Configuration Settings
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          CONFIG_FILE="arch/arm64/configs/gki_defconfig"
+          
+          if [ ! -f "$CONFIG_FILE" ]; then
+              echo "错误: gki_defconfig 文件不存在！"
+              ls -la arch/arm64/configs
+              exit 1
+          fi
+          
+          # 避免重复追加配置
+          if ! grep -q "CONFIG_KSU=y" "$CONFIG_FILE"; then
+            cat <<EOF >> "$CONFIG_FILE"
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_LTO=y
+          CONFIG_THIN_ARCHIVES=y
+          CONFIG_CRYPTO_LZ4K=n
+          CONFIG_CRYPTO_LZ4KD=n
+          CONFIG_CRYPTO_LZ4HC=n
+          CONFIG_CRYPTO_842=n
+          CONFIG_LOCALVERSION="-g013ec21bba94-abogki383916444-4k"
+          EOF
+          fi
+
+      # 15. Kernel 编译 (优化编译参数和流程)
+      - name: Build kernel
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+
+          export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
+          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CCACHE_CPP2=yes
+          export CCACHE_NOHASHDIR=yes
+          export CC="ccache clang"
+          export CXX="ccache cl++"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export HEADER_ARCH=arm64
+          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
+          export KBUILD_BUILD_HOST=builder@localhost
+          export LLVM=1
+          export LLVM_IAS=1
+          
+          # 优化编译参数
+          export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize -march=native -mtune=native"
+          export LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
+          
+          # 设置并行编译参数
+          JOBS=$(( $(nproc) * 2 ))
+          echo "使用并行编译: -j$JOBS"
+
+          echo "===== 验证工具链 ====="
+          which clang || { echo "错误: Clang 未找到！"; exit 1; }
+          clang --version
+          which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
+          ld.lld --version
+
+          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
+
+          echo "===== 开始配置 ====="
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
+          
+          echo "===== 开始构建内核 ====="
+          time make -s O=out -j$JOBS \
+              ARCH=$ARCH \
+              SUBARCH=$SUBARCH \
+              HEADER_ARCH=$HEADER_ARCH \
+              CC="$CC" \
+              CXX="$CXX" \
+              LD=ld.lld \
+              AR=llvm-ar \
+              NM=llvm-nm \
+              OBJCOPY=llvm-objcopy \
+              OBJDUMP=llvm-objdump \
+              READELF=llvm-readelf \
+              OBJSIZE=llvm-size \
+              STRIP=llvm-strip \
+              KCFLAGS="$KCFLAGS" \
+              LDFLAGS="$LDFLAGS" 2>&1 | tee build.log
+              
+          # 显示ccache统计
+          ccache -s
+
+      # 16. 检查编译输出
+      - name: Check kernel output files
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          if [ -f android-kernel/out/arch/arm64/boot/Image ]; then
+              echo "CHECK_IMAGE=true" >> $GITHUB_ENV
+          else
+              echo "Kernel output file is empty"
+              echo "===== out/arch/arm64/boot 目录内容 ====="
+              ls -la android-kernel/out/arch/arm64/boot
+              echo "===== 最后100行构建日志 ====="
+              tail -n 100 android-kernel/build.log || true
+              exit 1
+          fi
+
+      # 17. 打包 AnyKernel3 (并行执行)
+      - name: Make Anykernel3
+        if: env.CHECK_IMAGE == 'true'
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
+          rm -rf AnyKernel3/.git
+          cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
+          cd AnyKernel3
+          zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip * &
+          ZIP_PID=$!
+          
+          # 同时上传Image
+          actions/upload-artifact@v4 --name Image-${{ env.KSUVER }} \
+            --path kernel_workspace/android-kernel/out/arch/arm64/boot/Image &
+          UPLOAD_PID=$!
+          
+          wait $ZIP_PID
+          wait $UPLOAD_PID
+          
+          mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
+
+      # 18. 上传 AnyKernel3
+      - name: Upload AnyKernel3
+        if: env.CHECK_IMAGE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3-${{ env.KSUVER }}
+          path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
+
+      # 19. 发布Release并上传产物
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        if: ${{ success() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.KSUVER }}
+          name: "sukisu ${{ env.KSUVER }}"
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
+          body: |
+            **Build Details**
+            - KernelSU Version: ${{ env.KSUVER }}
+            - Build Date: ${{ steps.date.outputs.current-date }}
+            **Build Environment:**
+            - OS: ubuntu-latest
+            - Clang Version: ${{ env.CLANG_VERSION }}
+          files: |
+            AnyKernel3-${{ env.KSUVER }}.zip
+            kernel_workspace/android-kernel/out/arch/arm64/boot/Image
