@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
+      - 'v*.*.*'
 
 env:
   TZ: Asia/Shanghai
@@ -59,13 +59,11 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace
           cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
-      # 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 10
 
-      # 环境准备
       - name: Setup build kernel environment
         run: |
           echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%y%m%d')" >> $GITHUB_ENV
@@ -75,7 +73,6 @@ jobs:
                 libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev \
                 ninja-build python3-pip
           mkdir -p "${{ env.CCACHE_DIR }}"
-          # 配置ccache
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
           ccache --set-config=compression=true
@@ -85,20 +82,17 @@ jobs:
           ccache --show-config
           ccache -z
 
-      # 配置 git 用户
       - name: Configure Git for kernel build
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
 
-      # 记录当前日期
       - name: Setup build date
         id: date
         run: |
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
-      # 缓存 ccache
       - name: Cache ccache
         uses: actions/cache@v4
         with:
@@ -108,7 +102,6 @@ jobs:
             ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
             ccache-${{ runner.os }}-
 
-      # 缓存 clang 工具链
       - name: Cache Clang toolchain
         id: cache-clang
         uses: actions/cache@v4
@@ -116,7 +109,6 @@ jobs:
           path: ${{ github.workspace }}/kernel_workspace/clang-aosp
           key: ${{ env.CLANG_VERSION }}
 
-      # 下载并解压 clang 工具链（如未命中缓存）
       - name: Download & extract Clang-aosp
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
@@ -125,14 +117,12 @@ jobs:
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
-      # 修补 setlocalversion
       - name: Patch setlocalversion
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
           sed -i 's/OKI/android15-8/g' setlocalversion
 
-      # 安装 KernelSU
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -141,7 +131,6 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
-      # SUSFS适配及patch
       - name: Setup susfs
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -152,7 +141,6 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           patch -p1 -F 3 < syscall_hooks.patch || true
 
-      # 应用 HMBird GKI patch
       - name: Apply HMBird GKI patch
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
@@ -188,29 +176,25 @@ jobs:
                    return 0;
               }
 
-              // property 替换流程修正&内存管理改进: 使用kzalloc确保清零并避免浅拷贝问题
               struct property *prop = of_find_property(ver_np, "type", NULL);
               if (prop) {
-                   // 分配新的属性结构体内存，并初始化为零
                    struct property *new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
                    if (!new_prop) {
                         pr_err("hmbird_patch: kzalloc for new_prop failed\n");
                         of_node_put(ver_np);
                         return -ENOMEM;
                    }
-                   new_prop->name = prop->name; // 复制属性名指针，通常是静态字符串
-                   new_prop->length = strlen("HMBIRD_GKI") + 1; // 新值的长度
-                   // 为新的属性值分配内存
+                   new_prop->name = prop->name;
+                   new_prop->length = strlen("HMBIRD_GKI") + 1;
                    new_prop->value = kzalloc(new_prop->length, GFP_KERNEL);
                    if (!new_prop->value) {
                         pr_err("hmbird_patch: kzalloc for new_prop->value failed\n");
-                        kfree(new_prop); // 释放已分配的new_prop
+                        kfree(new_prop);
                         of_node_put(ver_np);
                         return -ENOMEM;
                    }
-                   strcpy(new_prop->value, "HMBIRD_GKI"); // 拷贝新值
+                   strcpy(new_prop->value, "HMBIRD_GKI");
 
-                   // 移除旧属性
                    if (of_remove_property(ver_np, prop)) {
                         pr_err("hmbird_patch: of_remove_property failed\n");
                         kfree(new_prop->value);
@@ -218,7 +202,6 @@ jobs:
                         of_node_put(ver_np);
                         return -EINVAL;
                    }
-                   // 添加新属性
                    if (of_add_property(ver_np, new_prop)) {
                         pr_err("hmbird_patch: of_add_property failed\n");
                         kfree(new_prop->value);
@@ -281,120 +264,126 @@ jobs:
           CONFIG_LOCALVERSION="-g013ec21bba94-abogki383916444-4k"
           EOF
 
-      # 安装xmake
-      - name: Install xmake
+      # 修复xmake安装和配置
+      - name: Install xmake with full dependencies
         run: |
-          curl -fsSL https://xmake.io/shget.text | bash
+          # 确保安装完整版xmake
+          curl -fsSL https://xmake.io/shget.text | bash -s -- --yes
           ~/.local/bin/xmake --version
+          ~/.local/bin/xmake update -s dev
+          
+          # 添加xmake到PATH
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # 使用xmake构建内核
       - name: Build kernel with xmake
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-
+          
           # 设置环境变量
-          export PATH=~/.local/bin:$PATH
+          export PATH=$HOME/.local/bin:$PATH
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
           export CCACHE_DIR=${{ env.CCACHE_DIR }}
-          export XMAKE_ROOT=y
-          export XMAKE_PROGRAM_DIR=~/.local/bin
-          export XMAKE_GLOBALDIR=$GITHUB_WORKSPACE/.xmake
-          export XMAKE_CCACHE_ENABLE=true
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
           export KBUILD_BUILD_HOST=builder@localhost
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
-          export LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
-
+          
           # 创建xmake配置
-          cat > xmake.lua <<EOF
+          cat > xmake.lua <<'EOL'
           target("kernel")
-              set_kind("binary")
-              set_arch("arm64")
-              set_plat("linux")
-              set_toolchains("clang")
-              add_defines(
-                  "__KERNEL__",
-                  "MODULE",
-                  "CONFIG_AS_LSE=1",
-                  "CONFIG_CC_HAVE_STACKPROTECTOR_SYSREG=1",
-                  "CONFIG_CC_HAS_ARMV8_5_BTI=1",
-                  "CONFIG_CC_HAS_BRANCH_PROT_PAC_RET=1",
-                  "CONFIG_CC_HAS_SIGN_RETURN_ADDRESS=1"
-              )
-              add_cflags(
-                  "-O2",
-                  "-pipe",
-                "$(KCFLAGS)",
-                "-fno-strict-aliasing",
-                "-fno-common",
-                "-fshort-wchar",
-                "-fno-PIE",
-                "-fno-asynchronous-unwind-tables",
-                "-fno-unwind-tables",
-                "-fno-delete-null-pointer-checks",
-                "-fmacro-prefix-map=./=",
-                "-fstack-protector-strong",
-                "-fno-allow-store-data-races",
-                "-fno-omit-frame-pointer",
-                "-fno-optimize-sibling-calls",
-                "-fno-var-tracking-assignments",
-                "-fno-strict-overflow",
-                "-fconserve-stack",
-                "-ffunction-sections",
-                "-fdata-sections",
-                "-fno-stack-check"
-              )
-              add_ldflags(
-                "$(LDFLAGS)",
-                "-z noexecstack",
-                "-z relro",
-                "-z now",
-                "-z max-page-size=4096",
-                "--pack-dyn-relocs=relr",
-                "--use-android-relr-tags",
-                "-T ./arch/arm64/kernel/vmlinux.lds"
-              )
-              add_includedirs(
-                "./include",
-                "./arch/arm64/include",
-                "./arch/arm64/include/generated"
-              )
-              add_files(
-                "arch/arm64/kernel/head.S",
-                "arch/arm64/kernel/**.S",
-                "arch/arm64/kernel/**.c",
-                "kernel/**.c",
-                "fs/**.c",
-                "drivers/**.c",
-                "mm/**.c",
-                "net/**.c",
-                "ipc/**.c",
-                "security/**.c",
-                "init/**.c",
-                "lib/**.c",
-                "crypto/**.c",
-                "block/**.c"
-              )
-              before_build(function (target)
-                os.exec("make gki_defconfig")
-              end)
-              after_build(function (target)
-                os.cp("$(buildir)/linux/arm64/release/Image", "out/arch/arm64/boot/Image")
-              end)
-          EOF
-
+             set_kind("binary")
+             set_arch("arm64")
+             set_plat("linux")
+             set_toolchains("clang")
+             
+             -- 添加编译标志
+             add_cflags(
+                 "-O2",
+                 "-pipe",
+                 "-fno-strict-aliasing",
+                 "-fno-common",
+                 "-fshort-wchar",
+                 "-fno-PIE",
+                 "-fno-asynchronous-unwind-tables",
+                 "-fno-unwind-tables",
+                 "-fno-delete-null-pointer-checks",
+                 "-fmacro-prefix-map=./=",
+                 "-fstack-protector-strong",
+                 "-fno-allow-store-data-races",
+                 "-fno-omit-frame-pointer",
+                 "-fno-optimize-sibling-calls",
+                 "-fno-var-tracking-assignments",
+                 "-fno-strict-overflow",
+                 "-fconserve-stack",
+                 "-ffunction-sections",
+                 "-fdata-sections",
+                 "-fno-stack-check",
+                 "-flto=thin",
+                 "-fno-vectorize",
+                 "-fno-unroll-loops",
+                 "-fno-slp-vectorize"
+             )
+             
+             -- 添加链接标志
+             add_ldflags(
+                 "-z noexecstack",
+                 "-z relro",
+                 "-z now",
+                 "-z max-page-size=4096",
+                 "--pack-dyn-relocs=relr",
+                 "--use-android-relr-tags",
+                 "--thinlto-cache-dir=" .. os.getenv("CCACHE_DIR") .. "/thinlto-cache"
+             )
+             
+             -- 添加包含目录
+             add_includedirs(
+                 "include",
+                 "arch/arm64/include",
+                 "arch/arm64/include/generated"
+             )
+             
+             -- 添加源文件
+             add_files(
+                 "arch/arm64/kernel/head.S",
+                 "arch/arm64/kernel/**.S",
+                 "arch/arm64/kernel/**.c",
+                 "kernel/**.c",
+                 "fs/**.c",
+                 "drivers/**.c",
+                 "mm/**.c",
+                 "net/**.c",
+                 "ipc/**.c",
+                 "security/**.c",
+                 "init/**.c",
+                 "lib/**.c",
+                 "crypto/**.c",
+                 "block/**.c"
+             )
+             
+             -- 构建前生成配置
+             before_build(function (target)
+                 os.exec("make gki_defconfig")
+             end)
+             
+             -- 构建后复制镜像
+             after_build(function (target)
+                 os.mkdir("out/arch/arm64/boot")
+                 os.cp("build/linux/arm64/release/Image", "out/arch/arm64/boot/Image")
+             end)
+          EOL
+          
+          # 创建thinlto缓存目录
+          mkdir -p "$CCACHE_DIR/thinlto-cache"
+          
           # 使用xmake构建
           xmake f -p linux -a arm64 --toolchain=clang -c
           xmake build -j$(nproc) kernel
-
+          
           # 显示ccache统计
           ccache -s
 
-      # 检查编译输出
       - name: Check kernel output files
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
@@ -407,7 +396,6 @@ jobs:
               exit 1
           fi
 
-      # 打包 AnyKernel3（条件执行）
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
@@ -419,7 +407,6 @@ jobs:
           zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
           mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
 
-      # 上传 kernel Image
       - name: Upload Image
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
@@ -427,7 +414,6 @@ jobs:
           name: Image-${{ env.KSUVER }}
           path: kernel_workspace/android-kernel/out/arch/arm64/boot/Image
 
-      # 上传 AnyKernel3
       - name: Upload AnyKernel3
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
@@ -435,7 +421,6 @@ jobs:
           name: AnyKernel3-${{ env.KSUVER }}
           path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
 
-      # 发布Release并上传产物
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         if: ${{ success() }}
