@@ -148,11 +148,13 @@ jobs:
               set_toolset("ld", "ld.lld")
               set_toolset("ar", "llvm-ar")
               set_toolset("as", "clang")
+              add_cflags("-fno-strict-aliasing", "-fno-common", "-fshort-wchar")
+              add_cxflags("-std=gnu11")
+              add_asflags("-D__ASSEMBLY__")
           toolchain_end()
           
           -- 设置编译选项
           add_cflags("-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize")
-          add_cxflags("-std=gnu11")
           add_ldflags("--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache")
           
           -- 设置架构
@@ -160,17 +162,28 @@ jobs:
           set_plat("linux")
           
           -- 添加头文件路径
-          add_includedirs("include", "arch/arm64/include")
+          add_includedirs("include", "arch/arm64/include", "arch/arm64/include/generated")
           
           -- 设置编译宏
-          add_defines("CONFIG_KSU=y", 
+          add_defines("__KERNEL__", 
+                      "CONFIG_KSU=y", 
                       "CONFIG_KSU_SUSFS=y",
                       "CONFIG_LTO=y",
-                      "CONFIG_THIN_ARCHIVES=y")
+                      "CONFIG_THIN_ARCHIVES=y",
+                      "ARCH=arm64")
+          
+          -- 预编译目标
+          target("prepare")
+              set_kind("phony")
+              on_run(function (target)
+                  os.exec("make O=out ARCH=arm64 SUBARCH=arm64 LLVM=1 LLVM_IAS=1 defconfig")
+                  os.exec("make O=out ARCH=arm64 SUBARCH=arm64 LLVM=1 LLVM_IAS=1 prepare")
+              end)
           
           -- 创建内核目标
           target("vmlinux")
               set_kind("binary")
+              add_deps("prepare")
               add_files("kernel/*.c", 
                        "arch/arm64/kernel/*.c", 
                        "fs/*.c", 
@@ -187,6 +200,7 @@ jobs:
           -- 添加模块目标
           target("hmbird_patch")
               set_kind("shared")
+              add_deps("prepare")
               add_files("drivers/hmbird_patch.c")
               add_toolchains("clang")
           EOF
@@ -359,6 +373,7 @@ jobs:
 
           # 配置 xmake
           xmake config --toolchain=clang --arch=arm64 --plat=linux
+          xmake build prepare
           xmake build -v -j$(nproc --all)
 
           # 显示ccache统计
@@ -368,12 +383,12 @@ jobs:
       - name: Check kernel output files
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
-          if [ -f android-kernel/build/linux/arm64/release/vmlinux ]; then
+          if [ -f android-kernel/out/arch/arm64/boot/Image ]; then
               echo "CHECK_IMAGE=true" >> $GITHUB_ENV
           else
               echo "Kernel output file is empty"
-              echo "===== build 目录内容 ====="
-              ls -la android-kernel/build/
+              echo "===== out/arch/arm64/boot 目录内容 ====="
+              ls -la android-kernel/out/arch/arm64/boot
               exit 1
           fi
 
@@ -384,7 +399,7 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
           rm -rf AnyKernel3/.git
-          cp android-kernel/build/linux/arm64/release/vmlinux AnyKernel3/Image
+          cp android-kernel/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
           mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
@@ -395,7 +410,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Image-${{ env.KSUVER }}
-          path: kernel_workspace/android-kernel/build/linux/arm64/release/vmlinux
+          path: kernel_workspace/android-kernel/out/arch/arm64/boot/Image
 
       # 上传 AnyKernel3
       - name: Upload AnyKernel3
@@ -427,4 +442,4 @@ jobs:
             - Build System: xmake
           files: |
             AnyKernel3-${{ env.KSUVER }}.zip
-            kernel_workspace/android-kernel/build/linux/arm64/release/vmlinux
+            kernel_workspace/android-kernel/out/arch/arm64/boot/Image
