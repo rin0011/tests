@@ -270,6 +270,15 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
 
+          # 获取物理核心数和逻辑核心数
+          PHYS_CORES=$(lscpu -p | grep -v '^#' | awk -F, '{print $2}' | sort | uniq | wc -l)
+          LOGIC_CORES=$(nproc)
+          echo "物理核心: $PHYS_CORES, 逻辑核心: $LOGIC_CORES"
+          
+          # 使用所有逻辑核心进行编译
+          MAX_THREADS=$LOGIC_CORES
+          echo "使用最大线程数: $MAX_THREADS"
+
           export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           export CCACHE_CPP2=yes
@@ -287,10 +296,6 @@ jobs:
           # 优化编译参数
           export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
           export LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
-          
-          # 设置并行编译参数
-          JOBS=$(( $(nproc) * 2 ))
-          echo "使用并行编译: -j$JOBS"
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
@@ -304,7 +309,7 @@ jobs:
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
           
           echo "===== 开始构建内核 ====="
-          time make -s O=out -j$JOBS \
+          /usr/bin/time -v make -j$MAX_THREADS O=out \
               ARCH=$ARCH \
               SUBARCH=$SUBARCH \
               HEADER_ARCH=$HEADER_ARCH \
