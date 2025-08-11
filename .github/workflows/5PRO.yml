@@ -84,11 +84,6 @@ jobs:
           ccache --show-config
           ccache -z
 
-      # 4. 配置 git 用户
-      - name: Configure Git for kernel build
-        run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
 
       # 5. 记录当前日期
       - name: Setup build date
@@ -96,6 +91,14 @@ jobs:
         run: |
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
+
+      - name: Cache ThinLTO cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}/thinlto-cache
+          key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
+          restore-keys: |
+            thinlto-cache-${{ runner.os }}-
 
       # 6. 缓存 ccache
       - name: Cache ccache
@@ -274,7 +277,6 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_LTO=y
           CONFIG_THIN_ARCHIVES=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n

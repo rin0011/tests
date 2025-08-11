@@ -177,7 +177,6 @@ jobs:
               set_kind("phony")
               on_run(function (target)
                   os.exec("make O=out ARCH=arm64 SUBARCH=arm64 LLVM=1 LLVM_IAS=1 defconfig")
-                  os.exec("make O=out ARCH=arm64 SUBARCH=arm64 LLVM=1 LLVM_IAS=1 prepare")
               end)
           
           -- 创建内核目标
