@@ -43,7 +43,7 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: brokestar233/android_kernel_common_oneplus_sm8750
+          repository: rin0011/android_kernel_common_oneplus_sm8750
           ref: v8
           path: kernel_workspace/android-kernel
           
