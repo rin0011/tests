@@ -313,7 +313,8 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto -Wno-error"
+          export KCFLAGS="-O2 -flto=full -Wno-error"
+          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
@@ -341,6 +342,7 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
+              KMI="$KMI" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
