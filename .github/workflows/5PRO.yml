@@ -10,8 +10,10 @@ on:
 
 env:
   TZ: Asia/Shanghai
+  CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_HARDLINK: "true"
   CCACHE_DIR: ${{ github.workspace }}/ccache
-  CCACHE_COMPRESS: 1
   CCACHE_MAXSIZE: 10G
 
 jobs:
