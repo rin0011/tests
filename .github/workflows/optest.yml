@@ -71,9 +71,6 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace
           cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
-      - name: Check Disk Space
-        run: df -h
-
       # 2. 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
