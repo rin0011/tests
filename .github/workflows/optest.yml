@@ -71,6 +71,9 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace
           cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
+      - name: Check Disk Space
+        run: df -h
+
       # 2. 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
@@ -312,7 +315,8 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+          export KCFLAGS="-O2 -flto=full -fvisibility=hidden -fno-plt -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+          export CFLAGS=" -mllvm -cache-line-size=64"
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
@@ -340,6 +344,7 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
+              CFLAGS="$CFLAGS" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
