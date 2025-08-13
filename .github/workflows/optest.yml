@@ -312,7 +312,7 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto -fvisibility=hidden -fno-plt -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+          export KCFLAGS="-O2 -flto"
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
