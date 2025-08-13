@@ -253,6 +253,7 @@ jobs:
       - name: Add SUSFS Configuration Settings
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          sed -i 's/check_defconfig//' ./build.config.gki
           if [ ! -f "arch/arm64/configs/gki_defconfig" ]; then
               echo "错误: gki_defconfig 文件不存在！"
               ls -la arch/arm64/configs
