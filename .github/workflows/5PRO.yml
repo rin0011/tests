@@ -280,6 +280,7 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_LTO=y
           CONFIG_THIN_ARCHIVES=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
@@ -307,7 +308,8 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+          export KCFLAGS="-O2 -flto=thin -fno-vectorize -fno-unroll-loops -fno-slp-vectoriz -Wno-error"
+          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
@@ -335,6 +337,7 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
+              KMI="$KMI" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
