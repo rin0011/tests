@@ -108,7 +108,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}/fulllto-cache
-          key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
+          key: fulllto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
           restore-keys: |
             fulllto-cache-${{ runner.os }}-
 
