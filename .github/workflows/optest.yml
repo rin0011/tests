@@ -104,13 +104,13 @@ jobs:
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
-      - name: Cache ThinLTO cache
+      - name: Cache FullLTO cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.CCACHE_DIR }}/thinlto-cache
+          path: ${{ env.CCACHE_DIR }}/fulllto-cache
           key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
           restore-keys: |
-            thinlto-cache-${{ runner.os }}-
+            fulllto-cache-${{ runner.os }}-
 
       # 6. 缓存 ccache
       - name: Cache ccache
@@ -290,7 +290,6 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_LTO=y
           CONFIG_LOCALVERSION="-g013ec21bba94-abogki383916444-4k"
           EOF
 
@@ -322,7 +321,7 @@ jobs:
           which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
           ld.lld --version
 
-          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
+          mkdir -p ${{ env.CCACHE_DIR }}/fulllto-cache
 
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
 
@@ -343,7 +342,7 @@ jobs:
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
-              KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
+              KBUILD_LDFLAGS="--fulllto-cache-dir=${{ env.CCACHE_DIR }}/fulllto-cache"
 
           # 显示ccache统计
           ccache -s
