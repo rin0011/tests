@@ -331,7 +331,7 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
-              KMI="$KMI" \
+              #KMI="$KMI" \
 
           # 显示ccache统计
           ccache -s
