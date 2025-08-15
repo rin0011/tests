@@ -294,8 +294,8 @@ jobs:
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           export CCACHE_CPP2=yes
           export CCACHE_NOHASHDIR=yes
-          export CC="ccache clang"
-          export CXX="ccache clang++"
+          export CC="clang"
+          export CXX="clang++"
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
