@@ -1,185 +1,404 @@
-name: OPlus KPM Kernel
+name: Build TP
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'  # 仅在推送标签匹配 v*.*.* 时触发
+      - 'v*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
+
+env:
+  TZ: Asia/Shanghai
+  CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_HARDLINK: "true"
+  CCACHE_DIR: ${{ github.workspace }}/ccache
+  CCACHE_MAXSIZE: 10G
 
 jobs:
   build:
+    name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
-    timeout-minutes: 2160
-
+    env:
+      CLANG_VERSION: Clang-19.0.0git-20240723
     permissions:
       contents: write
       actions: read
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout main repo
+        uses: actions/checkout@v4
 
-    - name: Configure Git
-      run: |
-           git config --global user.name "github-actions[bot]"
-           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
+          ref: v8
+          path: kernel_workspace/android-kernel
 
-    - name: Clean up disk space
-      run: |
-        sudo apt-get clean
-        sudo rm -rf /usr/share/dotnet /etc/mysql /var/lib/mysql
-        sudo rm -rf /usr/local/lib/android
-        df -h
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3 git curl zip
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: rin0011/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
 
-    - name: Install repo tool
-      run: |
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
-        chmod a+x ~/repo
-        sudo mv ~/repo /usr/local/bin/repo
+      - name: Checkout sched_ext
+        uses: actions/checkout@v4
+        with:
+          repository: HanKuCha/sched_ext
+          path: kernel_workspace/sched_ext
 
-    - name: Initialize repo and sync
-      run: |
-        mkdir kernel_workspace && cd kernel_workspace
-        repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/sm8550 -m oneplus_ace3_v.xml --depth=1
-        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
-        rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-        rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-        sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-        sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
-        sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
-        sed -i '2s/check_defconfig//' ./kernel_platform/msm-kernel/build.config.gki
-        repo status
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android13-5.15 --depth=1
-        git clone https://github.com/WildPlusKernel/kernel_patches.git --depth=1
-        git clone https://github.com/rin0011/tests --depth=1
-        git clone https://github.com/ShirkNeko/SukiSU_patch.git
+      - name: Copy sched_ext
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
-    - name: Setup build date
-      id: date
-      run: |
-       current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
-       echo "current-date=${current_date}" >> $GITHUB_OUTPUT
+      # 2. 设置10G swap
+      - name: Set swap to 10G
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
 
-    - name: Setup KernelSU
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform
-        curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s susfs-dev
-        cd KernelSU
-        KSU_VERSION=$(( $(git rev-list --count HEAD) + 12606 ))
-        echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+      # 3. 环境准备
+      - name: Setup build kernel environment
+        run: |
+          echo "BUILD_TIME=$(TZ=Asia/Shanghai date '+%y%m%d')" >> $GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y git dwarves libelf-dev ccache automake flex bison build-essential \
+                zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+          mkdir -p "${{ env.CCACHE_DIR }}"
+          # 配置ccache
+          ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
+          ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
+          ccache -z
 
-    - name: Add SUSFS
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/common
-        cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android13-5.15.patch ./
-        cp ../../SukiSU_patch/hooks/new_hooks.patch ./
-        cp ../../kernel_patches/bbr/bbrv3-5.15+.patch ./
-        cp ../../kernel_patches/69_hide_stuff.patch ./
-        cp ../../SukiSU_patch/other/lz4k_patch/5.15/lz4kd.patch ./
-        cp ../../tests/001-lz4.patch ./
-        cp ../../SukiSU_patch/other/0001-lz4-Update-to-version-1.9.4.patch ./
-        cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
-        cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-        # zram lz4kd
-        cp -r ../../SukiSU_patch/other/lz4k/include/linux/* ./include/linux
-        cp -r ../../SukiSU_patch/other/lz4k/lib/* ./lib
-        cp -r ../../SukiSU_patch/other/lz4k/crypto/* ./crypto
-        patch -p1 < 50_add_susfs_in_gki-android13-5.15.patch || true
-        patch -p1 -F 3 < new_hooks.patch
-        patch -p1 -F 3 < 69_hide_stuff.patch
-        patch -p1 < bbrv3-5.15+.patch
-        #patch -p1 -F 3 < lz4kd.patch || true
-        patch -p1 -F 3 < 001-lz4.patch
-        #patch -p1 -F 3 < 0001-lz4-Update-to-version-1.9.4.patch
-        
-        
-    - name: Build defconfig
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/kernel_platform/
-        echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KPM=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_MANUAL_HOOK=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_KSU_WITH_KPOBES=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_ZRAM_WRITEBACK=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_LZ4K=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_LZ4KD=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_LZ4HC=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_CRYPTO_842=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_ZRAM=y" >> ./common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_ZSMALLOC=y" >> ./common/arch/arm64/configs/gki_defconfig
-        # Add additional config setting
-        echo "CONFIG_TCP_CONG_ADVANCED=y" >> ./common/arch/arm64/configs/gki_defconfig 
-        echo "CONFIG_TCP_CONG_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_NET_SCH_FQ=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TCP_CONG_BIC=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TCP_CONG_WESTWOOD=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_TCP_CONG_HTCP=n" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo 'CONFIG_DEFAULT_TCP_CONG="bbr"' >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_DEFAULT_BBR=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IP_ROUTE_CLASSID=y" >> ./common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_DEFAULT_CUBIC=n" >> ./common/arch/arm64/configs/gki_defconfig
-        
-    - name: Build kernel
-      run: |
-        cd kernel_workspace
-        LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
 
-    - name: add kpm
-      run: |
-        cd kernel_workspace
-        cp ./SukiSU_patch/kpm/patch_linux ./kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/
-        cd kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/
-        chmod +x patch_linux
-        ./patch_linux
-        rm -f Image
-        mv oImage Image
+      # 5. 记录当前日期
+      - name: Setup build date
+        id: date
+        run: |
+          current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
+          echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
-    - name: Make AnyKernel3
-      run: | 
-        git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
-        rm -rf ./AnyKernel3/.git
-        cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image ./AnyKernel3/
+      - name: Cache ThinLTO cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}/thinlto-cache
+          key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
+          restore-keys: |
+            thinlto-cache-${{ runner.os }}-
 
-    - name: Upload AnyKernel3
-      uses: actions/upload-artifact@v4
-      with:
-        name: AnyKernel3-OSS-OPace3-${{ env.KSUVER }}
-        path: ./AnyKernel3/*
+      # 6. 缓存 ccache
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
+            ccache-${{ runner.os }}-
 
-    - name: Upload kernel Image
-      uses: actions/upload-artifact@v4
-      with:
-        name: Image-OSS-${{ env.KSUVER }}
-        path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/Image
+      # 7. 缓存 clang 工具链
+      - name: Cache Clang toolchain
+        id: cache-clang
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/kernel_workspace/clang-aosp
+          key: ${{ env.CLANG_VERSION }}
 
-    - name: Upload boot.img
-      uses: actions/upload-artifact@v4
-      with:
-        name: boot-OSS-OPace3.img
-        path: kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/gki_kernel/dist/boot.img
+      # 8. 下载并解压 clang 工具链（如未命中缓存）
+      - name: Download & extract Clang-aosp
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          mkdir -p clang-aosp
+          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+          tar -C clang-aosp -zxvf zyclang.tar.gz
+
+
+      # 10. 修补 setlocalversion
+      - name: Patch setlocalversion
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
+          sed -i 's/ -dirty//g' setlocalversion
+          sed -i 's/OKI/android15-8/g' setlocalversion
+
+      # 13. 安装 KernelSU
+      - name: Setup KernelSU
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
+          KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count susfs-main) + 10700)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+
+      # 14. SUSFS适配及patch
+      - name: Setup susfs
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
+          #cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+          cp ../SukiSU_patch/hooks/sukisu_tracepoint_hooks.patch ./
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+          #patch -p1 -F 3 < syscall_hooks.patch || true
+          patch -p1 -F 3 < sukisu_tracepoint_hooks.patch || true
+
+      # 15. 应用 HMBird GKI patch
+      - name: Apply HMBird GKI patch
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
+          cat << 'EOF' > hmbird_patch.c
+          #include <linux/init.h>
+          #include <linux/module.h>
+          #include <linux/of.h>
+          #include <linux/slab.h>
+          #include <linux/string.h>
+          #include <linux/printk.h>
+
+          static int __init hmbird_patch_init(void)
+          {
+              struct device_node *ver_np;
+              const char *type;
+              int ret;
+
+              ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
+              if (!ver_np) {
+                   pr_info("hmbird_patch: version_type node not found\n");
+                   return 0;
+              }
+
+              ret = of_property_read_string(ver_np, "type", &type);
+              if (ret) {
+                   pr_info("hmbird_patch: type property not found\n");
+                   of_node_put(ver_np);
+                   return 0;
+              }
+
+              if (strcmp(type, "HMBIRD_OGKI") != 0) {
+                   of_node_put(ver_np);
+                   return 0;
+              }
+
+              // property 替换流程修正&内存管理改进: 使用kzalloc确保清零并避免浅拷贝问题
+              struct property *prop = of_find_property(ver_np, "type", NULL);
+              if (prop) {
+                   // 分配新的属性结构体内存，并初始化为零
+                   struct property *new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+                   if (!new_prop) {
+                        pr_err("hmbird_patch: kzalloc for new_prop failed\n");
+                        of_node_put(ver_np);
+                        return -ENOMEM;
+                   }
+                   new_prop->name = prop->name; // 复制属性名指针，通常是静态字符串
+                   new_prop->length = strlen("HMBIRD_GKI") + 1; // 新值的长度
+                   // 为新的属性值分配内存
+                   new_prop->value = kzalloc(new_prop->length, GFP_KERNEL);
+                   if (!new_prop->value) {
+                        pr_err("hmbird_patch: kzalloc for new_prop->value failed\n");
+                        kfree(new_prop); // 释放已分配的new_prop
+                        of_node_put(ver_np);
+                        return -ENOMEM;
+                   }
+                   strcpy(new_prop->value, "HMBIRD_GKI"); // 拷贝新值
+
+                   // 移除旧属性
+                   if (of_remove_property(ver_np, prop)) {
+                        pr_err("hmbird_patch: of_remove_property failed\n");
+                        kfree(new_prop->value);
+                        kfree(new_prop);
+                        of_node_put(ver_np);
+                        return -EINVAL;
+                   }
+                   // 添加新属性
+                   if (of_add_property(ver_np, new_prop)) {
+                        pr_err("hmbird_patch: of_add_property failed\n");
+                        kfree(new_prop->value);
+                        kfree(new_prop);
+                        of_node_put(ver_np);
+                        return -EINVAL;
+                   }
+                   pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
+              }
+              else {
+                  pr_info("hmbird_patch: type property structure not found\n");
+              }
+              of_node_put(ver_np);
+              return 0;
+          }
+          early_initcall(hmbird_patch_init);
+          MODULE_LICENSE("GPL");
+          MODULE_AUTHOR("reigadegr");
+          MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
+          EOF
+
+          if ! grep -q "hmbird_patch.o" Makefile; then
+            echo "obj-y += hmbird_patch.o" >> Makefile
+          fi
+
+
+      - name: Add SUSFS Configuration Settings
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          sed -i 's/check_defconfig//' ./build.config.gki
+          if [ ! -f "arch/arm64/configs/gki_defconfig" ]; then
+              echo "错误: gki_defconfig 文件不存在！"
+              ls -la arch/arm64/configs
+              exit 1
+          fi
+
+
+          cat <<EOF >> arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_HOOK_KPROBES=n
+          CONFIG_KSU_MANUAL_HOOK=n
+          CONFIG_KSU_TRACEPOINT_HOOK=y
+          CONFIG_LTO=y
+          CONFIG_THIN_ARCHIVES=y
+          CONFIG_CRYPTO_LZ4K=n
+          CONFIG_CRYPTO_LZ4KD=n
+          CONFIG_CRYPTO_LZ4HC=n
+          CONFIG_CRYPTO_842=n
+          CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
+          EOF
+
+      # 18. Kernel 编译
+      - name: Build kernel
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+
+          export KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025'
+          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CC="ccache clang"
+          export CXX="ccache clang++"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export HEADER_ARCH=arm64
+          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
+          export KBUILD_BUILD_HOST=localhost
+          export KBUILD_BUILD_USER=Builder
+          export LLVM=1
+          export LLVM_IAS=1
+          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
+
+          echo "===== 验证工具链 ====="
+          which clang || { echo "错误: Clang 未找到！"; exit 1; }
+          clang --version
+          which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
+          ld.lld --version
+
+          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
+
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
+
+          echo "===== 开始构建内核 ====="
+          make -s O=out -j$(nproc --all) \
+              ARCH=$ARCH \
+              SUBARCH=$SUBARCH \
+              HEADER_ARCH=$HEADER_ARCH \
+              CC="$CC" \
+              CXX="$CXX" \
+              LD=ld.lld \
+              AR=llvm-ar \
+              NM=llvm-nm \
+              OBJCOPY=llvm-objcopy \
+              OBJDUMP=llvm-objdump \
+              READELF=llvm-readelf \
+              OBJSIZE=llvm-size \
+              STRIP=llvm-strip \
+              KCFLAGS="$KCFLAGS" \
+              KMI="$KMI" \
+              KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
+
+          # 显示ccache统计
+          ccache -s
+
+      # 19. 检查编译输出
+      - name: Check kernel output files
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          if [ -f android-kernel/out/arch/arm64/boot/Image ]; then
+              echo "CHECK_IMAGE=true" >> $GITHUB_ENV
+          else
+              echo "Kernel output file is empty"
+              echo "===== out/arch/arm64/boot 目录内容 ====="
+              ls -la android-kernel/out/arch/arm64/boot
+              echo "===== 最后100行构建日志 ====="
+              tail -n 100 android-kernel/out/build.log || true
+              exit 1
+          fi
+
+      # 20. 打包 AnyKernel3（条件执行）
+      - name: Make Anykernel3
+        if: env.CHECK_IMAGE == 'true'
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/SukiSU_patch
+          cp ../android-kernel/out/arch/arm64/boot/Image AnyKernel3/
+          cd AnyKernel3
+          zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
+          mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
+
+      # 21. 上传 kernel Image
+      - name: Upload Image
+        if: env.CHECK_IMAGE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image-${{ env.KSUVER }}
+          path: kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+
+      # 22. 上传 AnyKernel3
+      - name: Upload AnyKernel3
+        if: env.CHECK_IMAGE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3-${{ env.KSUVER }}
+          path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
+
+      # 23. 发布Release并上传产物
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        if: ${{ success() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.KSUVER }}
+          name: "sukisu ${{ env.KSUVER }}"
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
+          body: |
+            **Build Details**
+            - KernelSU Version: ${{ env.KSUVER }}
+            - Build Date: ${{ steps.date.outputs.current-date }}
+            **Build Environment:**
+            - OS: ubuntu-latest
+            - Clang Version: ${{ env.CLANG_VERSION }}
+          files: |
+            AnyKernel3-${{ env.KSUVER }}.zip
+            kernel_workspace/android-kernel/out/arch/arm64/boot/Image
