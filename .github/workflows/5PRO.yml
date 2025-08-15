@@ -312,7 +312,7 @@ jobs:
 
           mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
 
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig all
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
 
           echo "===== 开始构建内核 ====="
           make -s O=out -j$(nproc --all) \
