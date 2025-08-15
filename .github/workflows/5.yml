@@ -31,7 +31,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: clang-r530567
+      CLANG_VERSION: Clang-19.0.0git-20240723
     permissions:
       contents: write
       actions: read
@@ -102,11 +102,6 @@ jobs:
           ccache --show-config
           ccache -z
 
-      - name: Configure Git for kernel build
-        run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
-          git config --global advice.addEmbeddedRepo false
 
       - name: Setup build date
         id: date
@@ -135,23 +130,41 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          DOWNLOAD_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/${CLANG_VERSION}.tar.gz"
-          echo "下载链接: $DOWNLOAD_URL"
-          aria2c -x16 -s16 -c "$DOWNLOAD_URL" -o "${CLANG_VERSION}.tar.gz"
-          if [ ! -f "${CLANG_VERSION}.tar.gz" ]; then
-            echo "错误: 下载失败！"
-            exit 1
-          fi
-          tar -C clang-aosp -zxvf "${CLANG_VERSION}.tar.gz"
-          rm -f "${CLANG_VERSION}.tar.gz"
+          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+          tar -C clang-aosp -zxvf zyclang.tar.gz
 
-      # 修复缩进从这里开始
-      - name: Download kernel source
+
+
+      - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
           repository: brokestar233/android_kernel_common_oneplus_sm8750
           ref: v8
           path: kernel_workspace/android-kernel
+          
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
+          
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
+
+      - name: Checkout sched_ext
+        uses: actions/checkout@v4
+        with:
+          repository: HanKuCha/sched_ext
+          path: kernel_workspace/sched_ext
+
+      - name: Copy sched_ext
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          cp -r ./sched_ext/* ./android-kernel/kernel/sched
 
       - name: Patch setlocalversion
         run: |
@@ -159,18 +172,6 @@ jobs:
           sed -i 's/ -dirty//g' setlocalversion
           sed -i 's/OKI/android15-8/g' setlocalversion
 
-      - name: Checkout susfs4ksu
-        uses: actions/checkout@v4
-        with:
-          repository: ShirkNeko/susfs4ksu
-          ref: gki-android15-6.6
-          path: kernel_workspace/susfs4ksu
-
-      - name: Checkout SukiSU_patch
-        uses: actions/checkout@v4
-        with:
-          repository: ShirkNeko/SukiSU_patch
-          path: kernel_workspace/SukiSU_patch
 
       - name: Setup KernelSU
         run: |
@@ -269,102 +270,91 @@ jobs:
               echo "obj-y += hmbird_patch.o" >> Makefile
           fi
 
-      - name: scx
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
-          git clone https://github.com/HanKuCha/sched_ext.git
-          cp -r ./sched_ext/* ./android-kernel/kernel/sched
-          rm -rf ./sched_ext/.git
-
       - name: Add SUSFS Configuration Settings
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          sed -i 's/check_defconfig//' ./build.config.gki
           if [ ! -f "arch/arm64/configs/gki_defconfig" ]; then
               echo "错误: gki_defconfig 文件不存在！"
               ls -la arch/arm64/configs
               exit 1
           fi
-          echo "CONFIG_KSU=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_MANUAL_HOOK=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=n" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> arch/arm64/configs/gki_defconfig
+
+
+          cat <<EOF >> arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_LTO=y
+          CONFIG_THIN_ARCHIVES=y
+          EOF
           echo "CONFIG_LOCALVERSION=\"-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
 
+      # 18. Kernel 编译
       - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+
           export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
-          export CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
-          export CCACHE_CPP2=yes
-          export CCACHE_NOHASHDIR=yes
           export CC="ccache clang"
           export CXX="ccache clang++"
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
-          export KBUILD_BUILD_HOST=Github-Action
-          export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z) 
+          export KBUILD_BUILD_HOST=localhost
+          export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -fno-vectorize -fno-unroll-loops -fno-slp-vectorize"
+          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
+
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
           clang --version
           which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
           ld.lld --version
-          echo "===== 准备构建目录 ====="
-          rm -rf out
-          mkdir -p out
-          echo "===== 创建最小配置 ====="
-          cat > out/.config <<EOF
-          CONFIG_KSU=y
-          CONFIG_KSU_SUSFS=y
-          CONFIG_LTO_CLANG=y
-          CONFIG_LTO_NONE=n
-          CONFIG_LTO_CLANG_THIN=y
-          CONFIG_LTO_CLANG_FULL=n
-          CONFIG_THINLTO=y
-          EOF
-          echo "===== 合并gki_defconfig ====="
-          ./scripts/kconfig/merge_config.sh -O out out/.config arch/arm64/configs/gki_defconfig
-          echo "===== 更新配置 ====="
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH olddefconfig
-          echo "===== 关键配置状态 ====="
-          ./scripts/config --file out/.config -s LTO_CLANG
-          ./scripts/config --file out/.config -s LTO_CLANG_THIN
-          ./scripts/config --file out/.config -s KSU
-          ./scripts/config --file out/.config -s KSU_SUSFS
-          echo "===== 开始详细构建内核 ====="
-          make O=out -j$(nproc --all) \
-            ARCH=$ARCH \
-            SUBARCH=$SUBARCH \
-            HEADER_ARCH=$HEADER_ARCH \
-            CC="$CC" \
-            CXX="$CXX" \
-            LD=ld.lld \
-            AR=llvm-ar \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            READELF=llvm-readelf \
-            OBJSIZE=llvm-size \
-            STRIP=llvm-strip
+
+          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
+
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig all
+
+          echo "===== 开始构建内核 ====="
+          make -s O=out -j$(nproc --all) \
+              ARCH=$ARCH \
+              SUBARCH=$SUBARCH \
+              HEADER_ARCH=$HEADER_ARCH \
+              CC="$CC" \
+              CXX="$CXX" \
+              LD=ld.lld \
+              AR=llvm-ar \
+              NM=llvm-nm \
+              OBJCOPY=llvm-objcopy \
+              OBJDUMP=llvm-objdump \
+              READELF=llvm-readelf \
+              OBJSIZE=llvm-size \
+              STRIP=llvm-strip \
+              KCFLAGS="$KCFLAGS" \
+              KMI="$KMI" \
+              KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
+
+          # 显示ccache统计
           ccache -s
 
       - name: Check kernel output files

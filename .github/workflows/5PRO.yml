@@ -79,11 +79,6 @@ jobs:
           # 配置ccache
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
-          ccache --set-config=compression=true
-          ccache --set-config=compression_level=1
-          ccache --set-config=hash_dir=false
-          ccache --set-config=sloppiness=file_macro,locale,time_macros
-          ccache --show-config
           ccache -z
 
 
@@ -296,8 +291,6 @@ jobs:
 
           export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
-          export CCACHE_CPP2=yes
-          export CCACHE_NOHASHDIR=yes
           export CC="ccache clang"
           export CXX="ccache clang++"
           export ARCH=arm64
