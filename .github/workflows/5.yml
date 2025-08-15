@@ -109,13 +109,6 @@ jobs:
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
-      - name: Cache ThinLTO cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}/thinlto-cache
-          key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
-          restore-keys: |
-            thinlto-cache-${{ runner.os }}-
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -308,8 +301,6 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_LTO=y
-          CONFIG_THIN_ARCHIVES=y
           EOF
           echo "CONFIG_LOCALVERSION=\"-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
 
@@ -330,7 +321,7 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          export KCFLAGS="-O2 -Wno-error"
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
@@ -339,9 +330,7 @@ jobs:
           which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
           ld.lld --version
 
-          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
-
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig all
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
 
           echo "===== 开始构建内核 ====="
           make -s O=out -j$(nproc --all) \
@@ -360,7 +349,6 @@ jobs:
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
-              KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
           ccache -s
