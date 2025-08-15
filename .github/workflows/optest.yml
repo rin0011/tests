@@ -292,10 +292,8 @@ jobs:
 
           export KBUILD_BUILD_TIMESTAMP='Tue Dec 17 23:36:49 UTC 2024'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
-          export CCACHE_CPP2=yes
-          export CCACHE_NOHASHDIR=yes
-          export CC="ccache clang"
-          export CXX="ccache clang++"
+          export CC="clang"
+          export CXX="clang++"
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
@@ -304,7 +302,7 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-flto -O2 -Wno-error"
+          export KCFLAGS="-flto -O2"
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
