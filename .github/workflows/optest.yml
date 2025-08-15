@@ -21,7 +21,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: Clang-19.0.0git-20240723
+      CLANG_VERSION: clang-r530567
     permissions:
       contents: write
       actions: read
@@ -128,7 +128,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+          wget -O zyclang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel/clang-r530567.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
 
@@ -294,8 +294,8 @@ jobs:
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           export CCACHE_CPP2=yes
           export CCACHE_NOHASHDIR=yes
-          export CC="clang"
-          export CXX="clang++"
+          export CC="ccache clang"
+          export CXX="ccache clang++"
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
