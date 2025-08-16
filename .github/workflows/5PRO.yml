@@ -276,6 +276,7 @@ jobs:
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_LTO=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
           CONFIG_THIN_ARCHIVES=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
@@ -359,7 +360,7 @@ jobs:
           cp ../android-kernel/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
-          mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
+          cp ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
 
       # 21. 上传 kernel Image
       - name: Upload Image
