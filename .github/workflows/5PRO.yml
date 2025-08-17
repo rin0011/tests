@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
+      - 'v*.*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
 
 env:
   TZ: Asia/Shanghai
@@ -387,8 +387,6 @@ jobs:
         with:
           tag_name: v${{ env.KSUVER }}
           name: "sukisu ${{ env.KSUVER }}"
-          draft: false
-          prerelease: ${{ contains(github.ref_name, 'rc') }}
           generate_release_notes: true
           body: |
             **Build Details**
