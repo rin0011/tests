@@ -1,10 +1,10 @@
-name: Build TP
+name: Build 5
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
+      - 'v*.*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
 
 env:
   TZ: Asia/Shanghai
@@ -45,7 +45,7 @@ jobs:
       - name: Checkout SukiSU_patch
         uses: actions/checkout@v4
         with:
-          repository: rin0011/SukiSU_patch
+          repository: ShirkNeko/SukiSU_patch
           path: kernel_workspace/SukiSU_patch
 
       - name: Checkout sched_ext
@@ -146,104 +146,9 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-          #cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
-          cp ../SukiSU_patch/hooks/sukisu_tracepoint_hooks.patch ./
+          cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          #patch -p1 -F 3 < syscall_hooks.patch || true
-          patch -p1 -F 3 < sukisu_tracepoint_hooks.patch || true
-
-      # 15. 应用 HMBird GKI patch
-      - name: Apply HMBird GKI patch
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
-          cat << 'EOF' > hmbird_patch.c
-          #include <linux/init.h>
-          #include <linux/module.h>
-          #include <linux/of.h>
-          #include <linux/slab.h>
-          #include <linux/string.h>
-          #include <linux/printk.h>
-
-          static int __init hmbird_patch_init(void)
-          {
-              struct device_node *ver_np;
-              const char *type;
-              int ret;
-
-              ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
-              if (!ver_np) {
-                   pr_info("hmbird_patch: version_type node not found\n");
-                   return 0;
-              }
-
-              ret = of_property_read_string(ver_np, "type", &type);
-              if (ret) {
-                   pr_info("hmbird_patch: type property not found\n");
-                   of_node_put(ver_np);
-                   return 0;
-              }
-
-              if (strcmp(type, "HMBIRD_OGKI") != 0) {
-                   of_node_put(ver_np);
-                   return 0;
-              }
-
-              // property 替换流程修正&内存管理改进: 使用kzalloc确保清零并避免浅拷贝问题
-              struct property *prop = of_find_property(ver_np, "type", NULL);
-              if (prop) {
-                   // 分配新的属性结构体内存，并初始化为零
-                   struct property *new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
-                   if (!new_prop) {
-                        pr_err("hmbird_patch: kzalloc for new_prop failed\n");
-                        of_node_put(ver_np);
-                        return -ENOMEM;
-                   }
-                   new_prop->name = prop->name; // 复制属性名指针，通常是静态字符串
-                   new_prop->length = strlen("HMBIRD_GKI") + 1; // 新值的长度
-                   // 为新的属性值分配内存
-                   new_prop->value = kzalloc(new_prop->length, GFP_KERNEL);
-                   if (!new_prop->value) {
-                        pr_err("hmbird_patch: kzalloc for new_prop->value failed\n");
-                        kfree(new_prop); // 释放已分配的new_prop
-                        of_node_put(ver_np);
-                        return -ENOMEM;
-                   }
-                   strcpy(new_prop->value, "HMBIRD_GKI"); // 拷贝新值
-
-                   // 移除旧属性
-                   if (of_remove_property(ver_np, prop)) {
-                        pr_err("hmbird_patch: of_remove_property failed\n");
-                        kfree(new_prop->value);
-                        kfree(new_prop);
-                        of_node_put(ver_np);
-                        return -EINVAL;
-                   }
-                   // 添加新属性
-                   if (of_add_property(ver_np, new_prop)) {
-                        pr_err("hmbird_patch: of_add_property failed\n");
-                        kfree(new_prop->value);
-                        kfree(new_prop);
-                        of_node_put(ver_np);
-                        return -EINVAL;
-                   }
-                   pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
-              }
-              else {
-                  pr_info("hmbird_patch: type property structure not found\n");
-              }
-              of_node_put(ver_np);
-              return 0;
-          }
-          early_initcall(hmbird_patch_init);
-          MODULE_LICENSE("GPL");
-          MODULE_AUTHOR("reigadegr");
-          MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
-          EOF
-
-          if ! grep -q "hmbird_patch.o" Makefile; then
-            echo "obj-y += hmbird_patch.o" >> Makefile
-          fi
-
+          patch -p1 -F 3 < syscall_hooks.patch || true
 
       - name: Add SUSFS Configuration Settings
         run: |
@@ -259,9 +164,9 @@ jobs:
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_MANUAL_HOOK=y
           CONFIG_KSU_HOOK_KPROBES=n
-          CONFIG_KSU_MANUAL_HOOK=n
-          CONFIG_KSU_TRACEPOINT_HOOK=y
+          CONFIG_KSU_TRACEPOINT_HOOK=n
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_SUSFS_SUS_PATH=y
@@ -278,6 +183,7 @@ jobs:
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_LTO=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
           CONFIG_THIN_ARCHIVES=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
@@ -333,6 +239,7 @@ jobs:
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
@@ -388,8 +295,6 @@ jobs:
         with:
           tag_name: v${{ env.KSUVER }}
           name: "sukisu ${{ env.KSUVER }}"
-          draft: false
-          prerelease: ${{ contains(github.ref_name, 'rc') }}
           generate_release_notes: true
           body: |
             **Build Details**
