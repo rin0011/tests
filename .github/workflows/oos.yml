@@ -19,7 +19,7 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: LLVM-Clang20-r547379
+      CLANG_VERSION: clang-r536225
     permissions:
       contents: write
       actions: read
@@ -119,8 +119,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          #wget -O clang-aosp.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz
-          wget -O clang-aosp.tar.gz https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/build-tools.zip
+          wget -O clang-aosp.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz
           tar -C clang-aosp -zxvf clang-aosp.tar.gz
 
 
@@ -210,7 +209,6 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export CROSS_COMPILE=aarch64-linux-gnu-
           export KCFLAGS="-O2 -flto=thin -Wno-error"
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
@@ -240,8 +238,9 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE=aarch64-linux-gnu- \
               KMI="$KMI" \
-              CROSS_COMPILE="CROSS_COMPILE" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
