@@ -221,7 +221,7 @@ jobs:
           mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
 
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
-
+          make CFLAGS="$(echo $CFLAGS | sed 's/-mcpu=[^ ]*//g')"
           echo "===== 开始构建内核 ====="
           make -s O=out -j$(nproc --all) \
               ARCH=$ARCH \
@@ -238,7 +238,8 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
-              #KMI="$KMI" \
+              KMI="$KMI" \
+              
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
