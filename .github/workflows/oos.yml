@@ -19,7 +19,6 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     env:
-      CLANG_VERSION: 
     permissions:
       contents: write
       actions: read
@@ -104,14 +103,6 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
             ccache-${{ runner.os }}-
-
-      # 7. 缓存 clang 工具链
-      - name: Cache Clang toolchain
-        id: cache-clang
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/kernel_workspace/clang-aosp
-          key: ${{ env.CLANG_VERSION }}
 
       # 8. 下载并解压 clang 工具链（如未命中缓存）
       - name: Download & extract Clang-aosp
