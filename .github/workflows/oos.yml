@@ -238,7 +238,7 @@ jobs:
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
-              KMI="$KMI" \
+              #KMI="$KMI" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
               KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
