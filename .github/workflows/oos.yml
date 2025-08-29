@@ -1,4 +1,4 @@
-name: Build 5pro
+name: Build 5
 
 on:
   workflow_dispatch:
@@ -184,8 +184,10 @@ jobs:
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_LTO=y
+          CONFIG_AUTOFDO_CLANG=y
+          CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
           CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
-          CONFIG_THIN_ARCHIVES=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O2=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
           CONFIG_CRYPTO_LZ4HC=n
@@ -210,7 +212,8 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          #export KCFLAGS="-O2 -flto=thin -Wno-error"
+          #KCFLAGS="$KCFLAGS" \
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
@@ -238,7 +241,6 @@ jobs:
               READELF=llvm-readelf \
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
-              KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
