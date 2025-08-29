@@ -18,7 +18,7 @@ jobs:
   build:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
-    env:
+
     permissions:
       contents: write
       actions: read
