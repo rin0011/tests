@@ -119,7 +119,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          wget -O zyclang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/${{CLANG_VERSION}}.tar.gz
+          wget -O zyclang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
 
