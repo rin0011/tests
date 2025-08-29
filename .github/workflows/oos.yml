@@ -78,13 +78,6 @@ jobs:
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
           ccache -z
 
-      # 5. 记录当前日期
-      - name: Setup build date
-        id: date
-        run: |
-          current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
-          echo "current-date=${current_date}" >> $GITHUB_OUTPUT
-
       - name: Cache ThinLTO cache
         uses: actions/cache@v4
         with:
@@ -166,38 +159,38 @@ jobs:
           fi
 
           # 使用正确的格式添加配置项
-        cat <<EOF >> arch/arm64/configs/gki_defconfig
-        CONFIG_KSU=y
-        CONFIG_KSU_SUSFS_SUS_SU=n
-        CONFIG_KSU_MANUAL_HOOK=y
-        CONFIG_KSU_HOOK_KPROBES=n
-        CONFIG_KSU_TRACEPOINT_HOOK=n
-        CONFIG_KSU_SUSFS=y
-        CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
-        CONFIG_KSU_SUSFS_SUS_PATH=y
-        CONFIG_KSU_SUSFS_SUS_MOUNT=y
-        CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
-        CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
-        CONFIG_KSU_SUSFS_SUS_KSTAT=y
-        CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
-        CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-        CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
-        CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-        CONFIG_KSU_SUSFS_ENABLE_LOG=y
-        CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
-        CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
-        CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-        CONFIG_LTO=y
-        CONFIG_AUTOFDO_CLANG=y
-        CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
-        CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
-        CONFIG_THIN_ARCHIVES=y
-        CONFIG_CRYPTO_LZ4K=n
-        CONFIG_CRYPTO_LZ4KD=n
-        CONFIG_CRYPTO_LZ4HC=n
-        CONFIG_CRYPTO_842=n
-        CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
-        EOF
+            cat <<EOF >> arch/arm64/configs/gki_defconfig
+            CONFIG_KSU=y
+            CONFIG_KSU_SUSFS_SUS_SU=n
+            CONFIG_KSU_MANUAL_HOOK=y
+            CONFIG_KSU_HOOK_KPROBES=n
+            CONFIG_KSU_TRACEPOINT_HOOK=n
+            CONFIG_KSU_SUSFS=y
+            CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+            CONFIG_KSU_SUSFS_SUS_PATH=y
+            CONFIG_KSU_SUSFS_SUS_MOUNT=y
+            CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+            CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+            CONFIG_KSU_SUSFS_SUS_KSTAT=y
+            CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+            CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+            CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+            CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+            CONFIG_KSU_SUSFS_ENABLE_LOG=y
+            CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+            CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+            CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+            CONFIG_LTO=y
+            CONFIG_AUTOFDO_CLANG=y
+            CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
+            CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+            CONFIG_THIN_ARCHIVES=y
+            CONFIG_CRYPTO_LZ4K=n
+            CONFIG_CRYPTO_LZ4KD=n
+            CONFIG_CRYPTO_LZ4HC=n
+            CONFIG_CRYPTO_842=n
+            CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
+            EOF
 
       # 18. Kernel 编译
       - name: Build kernel
