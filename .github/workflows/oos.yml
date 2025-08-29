@@ -86,27 +86,9 @@ jobs:
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
 
-      - name: Cache ThinLTO cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}/thinlto-cache
-          key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
-          restore-keys: |
-            thinlto-cache-${{ runner.os }}-
-
-      # 6. 缓存 ccache
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
-            ccache-${{ runner.os }}-
 
       # 8. 下载并解压 clang 工具链（如未命中缓存）
-      - name: Download & extract Clang-aosp
-        if: steps.cache-clang.outputs.cache-hit != 'true'
+      - name: Download & extract Clang-aosp'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp; cd clang-aosp
@@ -242,7 +224,6 @@ jobs:
               CROSS_COMPILE=aarch64-linux-gnu- \
               KMI="$KMI" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
-              KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
           ccache -s
