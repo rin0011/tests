@@ -118,9 +118,16 @@ jobs:
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
-          mkdir -p clang-aosp
-          wget -O clang-aosp.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz
-          tar -C clang-aosp -zxvf clang-aosp.tar.gz
+          mkdir -p clang-aosp; cd clang-aosp
+          #wget -O clang-aosp.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz
+          #tar -C clang-aosp -zxvf clang-aosp.tar.gz
+          wget -q https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/build-tools.zip
+          unzip build*.zip >/dev/null
+
+          wget -q https://github.com/ESK-Project/aosp_clang_mirror/releases/download/clang-r563880b-13818152/clang-r563880b.tar.gz
+          tar -zxvf *.tar.gz > /dev/null
+          
+          ls -a
 
 
       # 10. 修补 setlocalversion
