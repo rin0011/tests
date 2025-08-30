@@ -120,9 +120,9 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp; cd clang-aosp
           #wget -O zyclang.tar.gz https://github.com/rin0011/tests/releases/download/clang-r547379/clang-r547379.tar.gz
-          wget https://git.codelinaro.org/clo/la/kernelplatform/prebuilts-master/clang/host/linux-x86/-/archive/aosp-new/main-kernel/linux-x86-aosp-new-main-kernel.zip
-          #tar -zxvf *.tar.gz > /dev/null
-          unzip *.zip >/dev/null
+          wget https://github.com/JeyKul/clang-r547379/releases/download/clang/linux-x86-refs_heads_main-clang-r547379.tar.gz
+          tar -zxvf *.tar.gz > /dev/null
+          #unzip *.zip >/dev/null
 
 
       # 10. 修补 setlocalversion
@@ -209,7 +209,7 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
-          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/clang-r547379/bin:$PATH
+          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
           export KBUILD_BUILD_HOST=localhost
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
