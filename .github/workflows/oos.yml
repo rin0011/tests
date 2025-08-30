@@ -13,7 +13,7 @@ env:
   CCACHE_HARDLINK: "true"
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_MAXSIZE: 10G
-  CLANG_VERSION: clang-r536225
+  CLANG_VERSION: clang-r530567
 
 jobs:
   build:
@@ -118,7 +118,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp && cd clang-aosp
-          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r530567.tar.gz
           tar -zxvf *.tar.gz > /dev/null
 
 
