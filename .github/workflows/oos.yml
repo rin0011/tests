@@ -118,9 +118,9 @@ jobs:
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
-          mkdir -p clang-aosp; cd clang-aosp
+          mkdir -p clang-aosp && cd clang-aosp
           #wget -O zyclang.tar.gz https://github.com/rin0011/tests/releases/download/clang-r547379/clang-r547379.tar.gz
-          wget https://github.com/JeyKul/clang-r547379/releases/download/clang/linux-x86-refs_heads_main-clang-r547379.tar.gz
+          wget https://github.com/rin0011/tests/releases/download/clang-r547379/clang-r547379.tar.gz
           tar -zxvf *.tar.gz > /dev/null
           #unzip *.zip >/dev/null
 
