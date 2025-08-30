@@ -13,7 +13,7 @@ env:
   CCACHE_HARDLINK: "true"
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_MAXSIZE: 10G
-  CLANG_VERSION: clang-r510928
+  CLANG_VERSION: clang-r547379
 
 jobs:
   build:
@@ -119,7 +119,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp
-          wget -O zyclang.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-build-2024/clang-r510928.tar.gz
+          wget -O zyclang.tar.gz https://github.com/rin0011/tests/releases/download/clang-r547379/clang-r547379.tar.gz
           tar -C clang-aosp -zxvf zyclang.tar.gz
 
 
