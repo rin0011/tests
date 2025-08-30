@@ -118,7 +118,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp && cd clang-aosp
-          wget https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/clang-r547379.zip
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
           tar -zxvf *.tar.gz > /dev/null
 
 
@@ -186,7 +186,6 @@ jobs:
           CONFIG_AUTOFDO_CLANG=y
           CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
           CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
-          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O2=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
           CONFIG_CRYPTO_LZ4HC=n
@@ -211,7 +210,7 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          export KCFLAGS="-02 -flto=thin -Wno-error"
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
