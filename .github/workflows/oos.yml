@@ -13,7 +13,7 @@ env:
   CCACHE_HARDLINK: "true"
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_MAXSIZE: 10G
-  CLANG_VERSION: clang-r530567
+  CLANG_VERSION: clang-r536225
 
 jobs:
   build:
@@ -118,10 +118,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp && cd clang-aosp
-          wget https://github.com/cctv18/oneplus_sm8650_toolchain/releases/download/LLVM-Clang20-r547379/clang-r547379.zip
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
           #wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
-          #tar -zxvf *.tar.gz > /dev/null
-          unzip *.zip > /dev/null
+          tar -zxvf *.tar.gz > /dev/null
+          #unzip *.zip > /dev/null
 
 
       # 10. 修补 setlocalversion
@@ -212,7 +212,7 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          export KCFLAGS="-O2 -Wno-error"
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
