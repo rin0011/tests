@@ -301,6 +301,9 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_AUTOFDO_CLANG=y
+          CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
           EOF
           echo "CONFIG_LOCALVERSION=\"-g013ec21bba94-abogki383916444-4k\"" >> arch/arm64/configs/gki_defconfig
 
@@ -349,6 +352,7 @@ jobs:
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo"
 
           # 显示ccache统计
           ccache -s
