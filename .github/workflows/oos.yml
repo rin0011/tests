@@ -13,7 +13,7 @@ env:
   CCACHE_HARDLINK: "true"
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_MAXSIZE: 10G
-  CLANG_VERSION: clang-r536225
+  CLANG_VERSION: Clang-19.0.0git-20240723
 
 jobs:
   build:
@@ -110,8 +110,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir -p clang-aosp && cd clang-aosp
-          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
-          #wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r536225.tar.gz
+          wget https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           tar -zxvf *.tar.gz > /dev/null
           #unzip *.zip > /dev/null
 
@@ -178,8 +177,8 @@ jobs:
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           #CONFIG_LTO=y
           CONFIG_AUTOFDO_CLANG=y
-          #CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
-          #CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+          CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
           CONFIG_CRYPTO_LZ4HC=n
