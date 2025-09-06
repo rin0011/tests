@@ -47,17 +47,6 @@ jobs:
           repository: ShirkNeko/SukiSU_patch
           path: kernel_workspace/SukiSU_patch
 
-      - name: Checkout sched_ext
-        uses: actions/checkout@v4
-        with:
-          repository: HanKuCha/sched_ext
-          path: kernel_workspace/sched_ext
-
-      - name: Copy sched_ext
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
-          cp -r ./sched_ext/* ./android-kernel/kernel/sched
-
       # 2. 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
