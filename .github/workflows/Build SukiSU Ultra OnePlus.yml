@@ -215,11 +215,11 @@ jobs:
           mkdir -p "$APT_CACHE_DIR/lists/partial"
           sudo apt -o Dir::Cache="$APT_CACHE_DIR" update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt -o Dir::Cache="$APT_CACHE_DIR" install -yq --no-install-recommends \
-            python3 git curl ccache libelf-dev \
-            build-essential flex bison libssl-dev \
-            libncurses-dev liblz4-tool zlib1g-dev \
-            libxml2-utils rsync unzip
-
+            libxml2-utils rsync unzip \
+            dwarves libelf-dev ccache automake flex bison build-essential \
+            zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 \
+              libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+              
       - name: Restore Ccache
         uses: actions/cache@v3
         with:
@@ -590,7 +590,7 @@ jobs:
 
           # 移除构建审查
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i 's/r510928/r536225/g' ./common/build.config.constants
+          sed -i 's/r510928/r536225/' ./common/build.config.constants
       # Custom kernel build time, without adding #1 SMP PREEMPT 自定义内核构建时间，不要加入#1 SMP PREEMPT
       - name: Custom BUILD_TIME
         shell: bash
@@ -683,9 +683,7 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/kernel_workspace/kernel_platform/$CLANG_PREBUILT_BIN:$PATH"
           export PATH="/usr/lib/ccache:$PATH"
           export CC="ccache clang"
-          sudo apt install -y libelf-dev ccache
 
           cd ./common
           MAKE_ARGS="LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
-            RUSTC=../../prebuilts/rust/linux-x86/1.73.0b/bin/rustc \
-            PAHOLE=../../prebuilts/kernel-buil
+            RUSTC=../../prebuilts/rust/lin
