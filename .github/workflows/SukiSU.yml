@@ -554,5 +554,3 @@ jobs:
           files: |
             ${{ env.WORKSPACE }}/AnyKernel3-*.zip
             ${{ env.WORKSPACE }}/image_output/*
-        env:
-          GITHUB_TOKE
