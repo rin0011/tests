@@ -774,7 +774,17 @@ jobs:
             fi
           fi
 
+
       - name: Set zip Suffix
         id: suffix
         run: |
-          echo "value=${{ github.event.inputs.KPM == 'true' && '_KPM' || '' }}${{ github.event.inputs.HOOK == 'kpr
+          echo "value=${{ github.event.inputs.KPM == 'true' && '_KPM' || '' }}${{ github.event.inputs.HOOK == 'kprobe' && '_KP' || github.event.inputs.HOOK == 'manual' && '_VFS' || github.event.inputs.HOOK == 'tracepoint' && '_TP' || '' }}" >> $GITHUB_OUTPUT
+
+      - name: Upload AnyKernel3
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3_SukiSUUltra_${{ env.KSUVER }}_${{ steps.extract_info.outputs.value }}(${{ env.TKERNEL_VERSION }})${{ steps.suffix.outputs.value }}
+          path: ./AnyKernel3/*
+
+      - name: Post-build Disk Check
+        run: df -h
