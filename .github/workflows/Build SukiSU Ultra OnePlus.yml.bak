@@ -256,7 +256,7 @@ jobs:
           mkdir -p .repo/manifests
           FILE="${{ github.event.inputs.FILE }}"
           cp "$GITHUB_WORKSPACE/.repo/manifests_fallback/${FILE}.xml" ".repo/manifests/${FILE}.xml"
-          repo init -u https://github.com/rin0011/kernel_manifest.git -b oneplus/${{env.CPU}} -m "${FILE}.xml" --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
+          repo init -u https://github.com/rin0011/kernel_manifest.git -b oneplus/${{env.CPU}} -m "${FILE}.xml" --depth=1 --no-clone-bundle --no-tags
           repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync
           if [ -e kernel_platform/common/BUILD.bazel ]; then
             sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' kernel_platform/common/BUILD.bazel
