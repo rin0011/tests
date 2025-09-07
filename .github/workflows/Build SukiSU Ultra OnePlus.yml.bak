@@ -581,9 +581,9 @@ jobs:
           sed -i "s/KBUILD_CFLAGS += -mcpu=oryon-1//" ./common/Makefile
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i 's/r510928/r536225/' ./common/build.config.constants
-          #rm -rf ./common/check_file.sh
-          #sed -i '/obj-\$(CONFIG_IS_STARKERNELL)[[:space:]]*+=[[：space:]]*starkernel/d' ./common/drivers/Makefile
-          #sed -i '/[[:space:]]*source[[:space:]]\+"drivers\/starkernel\/Kconfig"[[:space:]]*/d' ./common/drivers/Kconfig
+          rm -rf ./common/check_file.sh
+          sed -i '/obj-\$(CONFIG_IS_STARKERNELL)[[:space:]]*+=[[：space:]]*starkernel/d' ./common/drivers/Makefile
+          sed -i '/[[:space:]]*source[[:space:]]\+"drivers\/starkernel\/Kconfig"[[:space:]]*/d' ./common/drivers/Kconfig
           cd ./common
           git revert 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
           git add -A
