@@ -471,7 +471,7 @@ jobs:
           SUBLEVEL=$(grep '^SUBLEVEL *=' Makefile | head -n1 | cut -d= -f2 | tr -d ' ')
 
           KERNEL_VERSION="${{ env.KERNEL_VERSION }}"
-          TKERNEL_VERSION="${{ env.TKERNEL_VERSION }}"
+          #TKERNEL_VERSION="${{ env.TKERNEL_VERSION }}"
           file="${{ github.event.inputs.FILE }}"
           TRUSTY_EXISTS="false"
           if [[ "$KERNEL_VERSION" == "6.6" ]]; then
