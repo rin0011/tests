@@ -1,179 +1,171 @@
-name: Build 5
+# 工作流名称
+name: Build Kernel
 
+# 工作流触发条件
 on:
+  # 允许手动触发
   workflow_dispatch:
+  # 当匹配 'v*.*.*.*' 格式的 tag 被推送到仓库时触发
   push:
     tags:
-      - 'v*.*.*.*'  # Trigger on new tags matching this pattern
+      - 'v*.*.*.*'
 
+# 全局环境变量，可用于工作流中的所有作业和步骤
 env:
-  TZ: Asia/Shanghai
+  TZ: Asia/Shanghai # 设置时区为亚洲/上海
+  # Ccache 相关环境变量配置，用于加速编译
   CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
   CCACHE_NOHASHDIR: "true"
   CCACHE_HARDLINK: "true"
-  CCACHE_MAXSIZE: 8G
-  CLANG_VERSION: 19.0.0git-20240723
-  CLANG_URL: https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+  CCACHE_DIR: ${{ github.workspace }}/ccache # ccache 缓存目录
+  CCACHE_MAXSIZE: 10G # ccache 最大缓存大小
+  # Clang 工具链版本
+  CLANG_VERSION: Clang-19.0.0git-20240723-release
 
+# 定义工作流中的作业
 jobs:
   build:
+    # 作业名称，使用 github.actor 动态显示触发者
     name: Build Kernel by ${{ github.actor }}
+    # 作业运行的虚拟环境
     runs-on: ubuntu-latest
+    # 为作业设置权限
     permissions:
-      contents: write
-      actions: read
+      contents: write # 需要写入权限以上传 Release 产物
 
     steps:
-      - name: Checkout main repo
+      # =================================================================
+      # 步骤 1: 检出所有必要的源代码仓库
+      # =================================================================
+      - name: Checkout Main Repository
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }} # 检出当前仓库
 
-      # Set up a dedicated workspace for all build-related files
-      - name: Set up build workspace
-        run: |
-          mkdir -p kernel_workspace/src
-
-      # Checkout repositories into the dedicated workspace
-      - name: Checkout kernel source
+      - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
           repository: brokestar233/android_kernel_common_oneplus_sm8750
           ref: v9
-          path: kernel_workspace/src/android-kernel
-          fetch-depth: 0
+          path: kernel_workspace/android-kernel # 检出到指定子目录
+            fetch-depth: 0
 
       - name: Checkout susfs4ksu
         uses: actions/checkout@v4
         with:
           repository: ShirkNeko/susfs4ksu
           ref: gki-android15-6.6
-          path: kernel_workspace/src/susfs4ksu
+          path: kernel_workspace/susfs4ksu
 
       - name: Checkout SukiSU_patch
         uses: actions/checkout@v4
         with:
           repository: ShirkNeko/SukiSU_patch
-          path: kernel_workspace/src/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
 
-      # Set swap space to 10G to avoid memory issues
-      - name: Set swap to 10G
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 10
-        
-      - name: Configure Git
+      # =================================================================
+      # 步骤 2: 配置构建环境
+      # =================================================================
+      - name: Setup Build Environment
         run: |
-          git config --global user.name "GITHUB"
-          git config --global user.email "action@github.com"
+          # 设置 10GB 的交换空间以防止内存不足
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          
+          # 更新软件包列表并安装所有编译所需的依赖
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              git dwarves libelf-dev ccache automake flex bison build-essential \
+              zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler \
+              python3 make pahole libssl-dev libffi-dev libxml2-dev libxslt1-dev \
+              libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
 
-      # Set up a dedicated directory for APT cache
-      - name: Configure APT cache directory
-        id: apt-cache-dir
-        run: |
-          echo "APT_CACHE_DIR=$HOME/apt-cache" >> $GITHUB_ENV
-          mkdir -p "$HOME/apt-cache"
+          # 创建并配置 ccache 缓存目录
+          mkdir -p "${{ env.CCACHE_DIR }}"
+          ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
+          ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
+          ccache -z # 清零 ccache 统计数据
 
-      # Cache APT packages for faster builds
-      - name: Restore APT Cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.APT_CACHE_DIR }}
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/oos.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
-      # Install build dependencies
-      - name: Install Dependencies
-        run: |
-          sudo rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
-           git dwarves libelf-dev ccache automake flex bison build-essential \
-           zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
-           libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
-
-      # Get kernel source commit hash
-      - name: Get kernel source commit hash
-        id: kernel-commit
-        run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
-          echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      # Cache Clang toolchain
-      - name: Cache Clang
-        id: cache-clang
-        uses: actions/cache@v3
-        with:
-          path: ${{ github.workspace }}/kernel_workspace/src/clang-aosp
-          key: ${{ runner.os }}-clang-${{ env.CLANG_VERSION }}
-
-      # Download and extract the Clang toolchain
-      - name: Download & extract Clang-aosp
-        if: steps.cache-clang.outputs.cache-hit != 'true'
-        run: |
-          cd ${{ github.workspace }}/kernel_workspace/src
-          mkdir -p clang-aosp
-          wget -qO- ${{ env.CLANG_URL }} | tar -zx -C clang-aosp
-
-      # Cache Ccache directory for faster kernel builds
-      - name: Restore Ccache
-        uses: actions/cache@v3
+      # =================================================================
+      # 步骤 3: 缓存管理 (Ccache 和 Clang)
+      # =================================================================
+      - name: Cache ccache
+        uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ steps.kernel-commit.outputs.hash }}
+          # 缓存键，结合操作系统、Clang版本和内核构建文件哈希，确保缓存准确性
+          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
 
-      # Initialize Ccache and set its size
-      - name: Initialize Ccache
-        run: |
-          ccache -M ${{ env.CCACHE_MAXSIZE }}
-          ccache -z
+      - name: Cache Clang Toolchain
+        id: cache-clang
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/kernel_workspace/clang-aosp
+          key: ${{ env.CLANG_VERSION }}
 
-      # Get and set the current build timestamp
-      - name: Setup build date
-        id: date
+      - name: Download and Extract Clang Toolchain
+        # 仅当缓存未命中时执行
+        if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
-          echo "current-date=$(TZ='${{ env.TZ }}' date +'%Y-%m-%d %H:%M')" >> $GITHUB_OUTPUT
+          CLANG_DIR="${{ github.workspace }}/kernel_workspace/clang-aosp"
+          mkdir -p "$CLANG_DIR"
+          cd "$CLANG_DIR"
+          CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz"
+          echo "Downloading Clang from $CLANG_URL"
+          wget -q "$CLANG_URL" -O clang.tar.gz
+          echo "Extracting Clang..."
+          tar -zxf clang.tar.gz
+          rm clang.tar.gz
 
-      # Patch setlocalversion script for custom version string
-      - name: Patch setlocalversion
+      # =================================================================
+      # 步骤 4: 准备内核源代码 (打补丁、集成模块、修改配置)
+      # =================================================================
+      - name: Set Dynamic Build Variables
+        id: build_vars
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
-          sed -i 's/ -dirty//g' scripts/setlocalversion
-          sed -i 's/OKI/android15-8/g' scripts/setlocalversion
-          git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
-
-      # Download and integrate KernelSU patches
-      - name: Setup KernelSU
-        run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
+          # 设置构建日期
+          echo "build_date=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")" >> "$GITHUB_OUTPUT"
+          
+          # 安装 KernelSU 并计算版本号
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
-          KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count susfs-main) + 10700)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
-
-      # Copy and apply SUSFS and SukiSU patches
-      - name: Setup susfs
+          # 通过 git commit 数量计算 KSU 版本号
+          KSU_VERSION=$(($(git -C KernelSU rev-list --count susfs-main) + 10700))
+          echo "ksu_version=$KSU_VERSION" >> "$GITHUB_OUTPUT"
+          
+      - name: Patch and Configure Kernel Source
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
+          
+          # 为 git 命令配置用户信息，防止 'git revert' 失败
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 修补 setlocalversion 脚本并撤销一个指定的 commit
+          sed -i -e 's/ -dirty//g' -e 's/OKI/android15-8/g' scripts/setlocalversion
+          git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
+          
+          # 集成 susfs 补丁
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
           cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           patch -p1 -F 3 < syscall_hooks.patch || true
+          
+          # 修改 Makefile 以使用动态的 KSU 版本号
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${{ steps.build_vars.outputs.ksu_version }}/" kernel/Makefile
 
-      # Add SUSFS and optimization configuration to kernel defconfig
-      - name: Add SUSFS and build configuration
-        run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
+          # 向内核配置文件追加 KSU 和性能优化相关的配置
           sed -i 's/check_defconfig//' ./build.config.gki
-          if [ ! -f "arch/arm64/configs/gki_defconfig" ]; then
-              echo "Error: gki_defconfig file not found!"
-              ls -la arch/arm64/configs
-              exit 1
-          fi
+          
+          echo "Appending KSU and performance configs to gki_defconfig..."
           cat <<EOF >> arch/arm64/configs/gki_defconfig
+          # KernelSU and SUSFS Configuration
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS_SUS_SU=n
           CONFIG_KSU_MANUAL_HOOK=y
@@ -194,113 +186,136 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_LTO=y
+          
+          # Performance and Optimization
           CONFIG_AUTOFDO_CLANG=y
           CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
           CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+          
+          # Disable unused crypto options
           CONFIG_CRYPTO_LZ4K=n
           CONFIG_CRYPTO_LZ4KD=n
           CONFIG_CRYPTO_LZ4HC=n
           CONFIG_CRYPTO_842=n
+          
+          # Set local version string
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
-      # Compile the kernel
-      - name: Build kernel
+      # =================================================================
+      # 步骤 5: 编译内核
+      # =================================================================
+      - name: Build Kernel
+        id: build_kernel
+        # 将所有编译相关的环境变量设置在步骤的 env 块中，更清晰
+        env:
+          KBUILD_BUILD_TIMESTAMP: 'Mon May 12 09:09:59 UTC 2025'
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CC: ccache clang
+          CXX: ccache clang++
+          ARCH: arm64
+          SUBARCH: arm64
+          HEADER_ARCH: arm64
+          PATH: ${{ github.workspace }}/kernel_workspace/clang-aosp/bin:${{ env.PATH }}
+          KBUILD_BUILD_HOST: localhost
+          KBUILD_BUILD_USER: Builder
+          LLVM: 1
+          LLVM_IAS: 1
+          KCFLAGS: "-O2 -flto=thin -Wno-error"
+          KMI_FLAGS: "SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
-          export KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025'
-          export PATH="/usr/lib/ccache:${{ github.workspace }}/kernel_workspace/src/clang-aosp/bin:$PATH"
-          export ARCH=arm64
-          export SUBARCH=arm64
-          export HEADER_ARCH=arm64
-          export KBUILD_BUILD_HOST=localhost
-          export KBUILD_BUILD_USER=Builder
-          export LLVM=1
-          export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
-          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
-          export CC="ccache clang"
-          export CXX="ccache clang++"
-          export LD=ld.lld
-          export AR=llvm-ar
-          export NM=llvm-nm
-          export OBJCOPY=llvm-objcopy
-          export OBJDUMP=llvm-objdump
-          export READELF=llvm-readelf
-          export OBJSIZE=llvm-size
-          export STRIP=llvm-strip
-          export CLANG_TRIPLE=aarch64-linux-gnu-
-          export CROSS_COMPILE=aarch64-linux-gnu-
-
-          echo "===== Validating toolchain ====="
-          which clang || { echo "Error: Clang not found!"; exit 1; }
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
+          
+          # 验证工具链是否存在并打印版本信息
+          echo "===== Verifying Toolchain ====="
           clang --version
-          which ld.lld || { echo "Error: ld.lld not found!"; exit 1; }
           ld.lld --version
-
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
-
-          echo "===== Starting kernel build ====="
-          make -j$(nproc --all) O=out
-
-          # Display ccache stats after build
+          
+          # 生成内核配置文件
+          make O=out gki_defconfig
+          
+          # 开始并行编译内核
+          echo "===== Starting Kernel Build ====="
+          make -j$(nproc --all) O=out \
+              LD=ld.lld \
+              AR=llvm-ar \
+              NM=llvm-nm \
+              OBJCOPY=llvm-objcopy \
+              OBJDUMP=llvm-objdump \
+              READELF=llvm-readelf \
+              OBJSIZE=llvm-size \
+              STRIP=llvm-strip \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE=aarch64-linux-gnu- \
+              KMI="$KMI_FLAGS" \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" | tee ../build.log
+          
+          # 显示 ccache 统计信息，用于调试缓存命中率
           ccache -s
 
-      # Check for successful kernel compilation
-      - name: Check kernel output files
-        id: check_output
+      # =================================================================
+      # 步骤 6: 打包并发布产物
+      # =================================================================
+      - name: Check for Build Artifacts
+        id: check_artifacts
         run: |
-          if [ -f "${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image" ]; then
-              echo "CHECK_IMAGE=true" >> $GITHUB_ENV
+          # 检查 Image 文件是否存在，如果不存在则构建失败
+          if [[ -f "${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image" ]]; then
+            echo "build_success=true" >> "$GITHUB_OUTPUT"
           else
-              echo "Kernel output file is missing. Build failed."
-              echo "===== Contents of out/arch/arm64/boot ====="
-              ls -la ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot
-              exit 1
+            echo "Kernel Image not found! Build failed."
+            echo "===== Tailing build log ====="
+            tail -n 100 ${{ github.workspace }}/kernel_workspace/build.log || true
+            exit 1
           fi
 
-      # Package kernel into AnyKernel3 zip
-      - name: Make Anykernel3
-        if: env.CHECK_IMAGE == 'true'
+      - name: Package AnyKernel3 Zip
+        # 仅当上一步检查成功时运行
+        if: steps.check_artifacts.outputs.build_success == 'true'
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/SukiSU_patch/AnyKernel3
-          cp ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image .
-          zip -r9 ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip *
-
-      # Upload the kernel Image as an artifact
-      - name: Upload Image
-        if: env.CHECK_IMAGE == 'true'
+          KSU_VERSION=${{ steps.build_vars.outputs.ksu_version }}
+          WORKSPACE=${{ github.workspace }}
+          
+          # 复制内核镜像到 AnyKernel3 目录
+          cp "$WORKSPACE/kernel_workspace/android-kernel/out/arch/arm64/boot/Image" \
+             "$WORKSPACE/kernel_workspace/SukiSU_patch/AnyKernel3/"
+             
+          # 打包为 zip 文件
+          cd "$WORKSPACE/kernel_workspace/SukiSU_patch/AnyKernel3"
+          zip -r9 "$WORKSPACE/AnyKernel3-$KSU_VERSION.zip" .
+          
+      - name: Upload Artifacts
+        # 仅当上一步检查成功时运行
+        if: steps.check_artifacts.outputs.build_success == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Image-${{ env.KSUVER }}
-          path: ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image
+          name: Kernel-Build-${{ steps.build_vars.outputs.ksu_version }}
+          path: |
+            ${{ github.workspace }}/AnyKernel3-${{ steps.build_vars.outputs.ksu_version }}.zip
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image
 
-      # Upload the AnyKernel3 zip as an artifact
-      - name: Upload AnyKernel3
-        if: env.CHECK_IMAGE == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: AnyKernel3-${{ env.KSUVER }}
-          path: ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
-
-      # Create a new GitHub release and upload assets
-      - name: Create Release and Upload Assets
+      - name: Create GitHub Release
+        # 仅当所有前面的步骤都成功时运行
+        if: success()
         uses: softprops/action-gh-release@v2
-        if: success() && startsWith(github.ref, 'refs/tags/')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ env.KSUVER }}
-          name: "sukisu ${{ env.KSUVER }}"
-          generate_release_notes: true
+          # 使用 secrets.GITHUB_TOKEN 进行身份验证
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 基于 KSU 版本号创建 tag
+          tag_name: v${{ steps.build_vars.outputs.ksu_version }}
+          # Release 的标题
+          name: "SukiSU Kernel v${{ steps.build_vars.outputs.ksu_version }}"
+          # Release 的正文内容
           body: |
             **Build Details**
-            - KernelSU Version: ${{ env.KSUVER }}
-            - Build Date: ${{ steps.date.outputs.current-date }}
-            **Build Environment:**
-            - OS: ubuntu-latest
+            - KernelSU Version: ${{ steps.build_vars.outputs.ksu_version }}
+            - Build Date: ${{ steps.build_vars.outputs.build_date }}
+            
+            **Build Environment**
+            - OS: Ubuntu Latest
             - Clang Version: ${{ env.CLANG_VERSION }}
+          # 要上传到 Release 的文件列表
           files: |
-            ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
-            ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image
+            ${{ github.workspace }}/AnyKernel3-${{ steps.build_vars.outputs.ksu_version }}.zip
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+
