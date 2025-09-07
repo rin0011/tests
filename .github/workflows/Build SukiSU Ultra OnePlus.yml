@@ -215,10 +215,10 @@ jobs:
           mkdir -p "$APT_CACHE_DIR/lists/partial"
           sudo apt -o Dir::Cache="$APT_CACHE_DIR" update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt -o Dir::Cache="$APT_CACHE_DIR" install -yq --no-install-recommends \
-            libxml2-utils rsync unzip make \
-            dwarves libelf-dev ccache automake flex bison build-essential \
-            zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 \
-              libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+            python3 git curl ccache libelf-dev \
+            build-essential flex bison libssl-dev \
+            libncurses-dev liblz4-tool zlib1g-dev \
+             libxml2-utils rsync unzip
               
       - name: Restore Ccache
         uses: actions/cache@v3
