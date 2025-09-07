@@ -1,4 +1,4 @@
-Name: Build 5
+name: Build 5
 
 on:
   workflow_dispatch:
