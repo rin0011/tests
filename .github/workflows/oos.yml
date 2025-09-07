@@ -17,10 +17,11 @@ env:
   CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
   CCACHE_NOHASHDIR: "true"
   CCACHE_HARDLINK: "true"
-  CCACHE_DIR: ${{ github.workspace }}/ccache # ccache 缓存目录
+  CCACHE_DIR: ${{ github.workspace }}/.ccache # 统一使用隐藏目录，避免与项目文件混淆
   CCACHE_MAXSIZE: 10G # ccache 最大缓存大小
   # Clang 工具链版本
   CLANG_VERSION: Clang-19.0.0git-20240723-release
+  CLANG_DIR: ${{ github.workspace }}/.clang # 统一使用隐藏目录
 
 # 定义工作流中的作业
 jobs:
@@ -41,6 +42,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }} # 检出当前仓库
+          submodules: true # 自动处理 git 子模块
 
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
@@ -62,9 +64,25 @@ jobs:
         with:
           repository: ShirkNeko/SukiSU_patch
           path: kernel_workspace/SukiSU_patch
-
+          
       # =================================================================
-      # 步骤 2: 配置构建环境
+      # 步骤 2: 缓存管理
+      # =================================================================
+      - name: Restore Build Cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            ${{ env.CLANG_DIR }}
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out
+          # 缓存键，结合操作系统、Clang版本和内核构建文件哈希，确保缓存准确性
+          key: ${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.CLANG_VERSION }}-
+      
+      # =================================================================
+      # 步骤 3: 设置编译环境和工具链
       # =================================================================
       - name: Setup Build Environment
         run: |
@@ -87,40 +105,20 @@ jobs:
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
           ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
           ccache -z # 清零 ccache 统计数据
-
-      # =================================================================
-      # 步骤 3: 缓存管理 (Ccache 和 Clang)
-      # =================================================================
-      - name: Cache ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          # 缓存键，结合操作系统、Clang版本和内核构建文件哈希，确保缓存准确性
-          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('**/Kbuild') }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
-
-      - name: Cache Clang Toolchain
-        id: cache-clang
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/kernel_workspace/clang-aosp
-          key: ${{ env.CLANG_VERSION }}
-
+          
       - name: Download and Extract Clang Toolchain
-        # 仅当缓存未命中时执行
-        if: steps.cache-clang.outputs.cache-hit != 'true'
+        # 仅当 Clang 缓存未命中时执行
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          CLANG_DIR="${{ github.workspace }}/kernel_workspace/clang-aosp"
-          mkdir -p "$CLANG_DIR"
-          cd "$CLANG_DIR"
+          mkdir -p "${{ env.CLANG_DIR }}"
+          cd "${{ env.CLANG_DIR }}"
           CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz"
           echo "Downloading Clang from $CLANG_URL"
           wget -q "$CLANG_URL" -O clang.tar.gz
           echo "Extracting Clang..."
           tar -zxf clang.tar.gz
           rm clang.tar.gz
-
+      
       # =================================================================
       # 步骤 4: 准备内核源代码 (打补丁、集成模块、修改配置)
       # =================================================================
@@ -142,12 +140,12 @@ jobs:
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           
           # 为 git 命令配置用户信息，防止 'git revert' 失败
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           
           # 修补 setlocalversion 脚本并撤销一个指定的 commit
           sed -i -e 's/ -dirty//g' -e 's/OKI/android15-8/g' scripts/setlocalversion
-          git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
+          git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c || true
           
           # 集成 susfs 补丁
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
@@ -216,7 +214,7 @@ jobs:
           ARCH: arm64
           SUBARCH: arm64
           HEADER_ARCH: arm64
-          PATH: ${{ github.workspace }}/kernel_workspace/clang-aosp/bin:${{ env.PATH }}
+          PATH: ${{ env.CLANG_DIR }}/bin:${{ env.PATH }}
           KBUILD_BUILD_HOST: localhost
           KBUILD_BUILD_USER: Builder
           LLVM: 1
@@ -294,6 +292,16 @@ jobs:
             ${{ github.workspace }}/AnyKernel3-${{ steps.build_vars.outputs.ksu_version }}.zip
             ${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image
 
+      - name: Save Build Cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            ${{ env.CLANG_DIR }}
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out
+          key: ${{ steps.cache.outputs.cache-hit }}
+      
       - name: Create GitHub Release
         # 仅当所有前面的步骤都成功时运行
         if: success()
@@ -318,4 +326,3 @@ jobs:
           files: |
             ${{ github.workspace }}/AnyKernel3-${{ steps.build_vars.outputs.ksu_version }}.zip
             ${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image
-
