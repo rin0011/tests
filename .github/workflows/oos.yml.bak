@@ -1,4 +1,4 @@
-Name: Build 5
+name: Build 5
 
 on:
   workflow_dispatch:
@@ -12,6 +12,8 @@ env:
   CCACHE_NOHASHDIR: "true"
   CCACHE_HARDLINK: "true"
   CCACHE_MAXSIZE: 8G
+  CLANG_VERSION: 19.0.0git-20240723
+  CLANG_URL: https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
 
 jobs:
   build:
@@ -84,50 +86,64 @@ jobs:
            zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
            libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
 
+      # Get kernel source commit hash
+      - name: Get kernel source commit hash
+        id: kernel-commit
+        run: |
+          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
+          echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      # Cache Clang toolchain
+      - name: Cache Clang
+        id: cache-clang
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/kernel_workspace/src/clang-aosp
+          key: ${{ runner.os }}-clang-${{ env.CLANG_VERSION }}
+
+      # Download and extract the Clang toolchain
+      - name: Download & extract Clang-aosp
+        if: steps.cache-clang.outputs.cache-hit != 'true'
+        run: |
+          cd ${{ github.workspace }}/kernel_workspace/src
+          mkdir -p clang-aosp
+          wget -qO- ${{ env.CLANG_URL }} | tar -zx -C clang-aosp
+
       # Cache Ccache directory for faster kernel builds
       - name: Restore Ccache
         uses: actions/cache@v3
         with:
           path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}
+          key: ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ steps.kernel-commit.outputs.hash }}
           restore-keys: |
-            ccache-${{ runner.os }}-
+            ccache-${{ runner.os }}-${{ env.CLANG_VERSION }}-
 
       # Initialize Ccache and set its size
       - name: Initialize Ccache
         run: |
           ccache -M ${{ env.CCACHE_MAXSIZE }}
-          ccache -s
+          ccache -z
 
       # Get and set the current build timestamp
       - name: Setup build date
         id: date
         run: |
-          echo "current-date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')" >> $GITHUB_OUTPUT
-
-      # Download and extract the Clang toolchain
-      - name: Download & extract Clang-aosp
-        run: |
-          cd ${{ github.workspace }}/kernel_workspace/src
-          mkdir -p clang-aosp && cd clang-aosp
-          wget https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
-          tar -zxvf *.tar.gz > /dev/null
+          echo "current-date=$(TZ='${{ env.TZ }}' date +'%Y-%m-%d %H:%M')" >> $GITHUB_OUTPUT
 
       # Patch setlocalversion script for custom version string
       - name: Patch setlocalversion
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel/scripts
-          sed -i 's/ -dirty//g' setlocalversion
-          sed -i 's/OKI/android15-8/g' setlocalversion
-          cd ..
-          git revert 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
+          cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
+          sed -i 's/ -dirty//g' scripts/setlocalversion
+          sed -i 's/OKI/android15-8/g' scripts/setlocalversion
+          git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
 
       # Download and integrate KernelSU patches
       - name: Setup KernelSU
         run: |
           cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
-          KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count susfs-main) + 10700)
+          KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count susfs-main) + 10700)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
@@ -189,12 +205,10 @@ jobs:
         run: |
           cd ${{ github.workspace }}/kernel_workspace/src/android-kernel
           export KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025'
-          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
-          export PATH="/usr/lib/ccache:$PATH"
+          export PATH="/usr/lib/ccache:${{ github.workspace }}/kernel_workspace/src/clang-aosp/bin:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
-          export PATH=$GITHUB_WORKSPACE/kernel_workspace/src/clang-aosp/bin:$PATH
           export KBUILD_BUILD_HOST=localhost
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
@@ -223,7 +237,7 @@ jobs:
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
 
           echo "===== Starting kernel build ====="
-          make -s O=out -j$(nproc --all)
+          make -j$(nproc --all) O=out
 
           # Display ccache stats after build
           ccache -s
@@ -232,15 +246,12 @@ jobs:
       - name: Check kernel output files
         id: check_output
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src
-          if [ -f android-kernel/out/arch/arm64/boot/Image ]; then
+          if [ -f "${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image" ]; then
               echo "CHECK_IMAGE=true" >> $GITHUB_ENV
           else
               echo "Kernel output file is missing. Build failed."
               echo "===== Contents of out/arch/arm64/boot ====="
-              ls -la android-kernel/out/arch/arm64/boot
-              echo "===== Last 100 lines of build log ====="
-              tail -n 100 android-kernel/out/build.log || true
+              ls -la ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot
               exit 1
           fi
 
@@ -248,11 +259,9 @@ jobs:
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
-          cd ${{ github.workspace }}/kernel_workspace/src/SukiSU_patch
-          cp ../android-kernel/out/arch/arm64/boot/Image AnyKernel3/
-          cd AnyKernel3
-          zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
-          mv ../AnyKernel3-${{ env.KSUVER }}.zip ${{ github.workspace }}/
+          cd ${{ github.workspace }}/kernel_workspace/src/SukiSU_patch/AnyKernel3
+          cp ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image .
+          zip -r9 ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip *
 
       # Upload the kernel Image as an artifact
       - name: Upload Image
@@ -273,7 +282,7 @@ jobs:
       # Create a new GitHub release and upload assets
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
-        if: ${{ success() }}
+        if: success() && startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -286,7 +295,7 @@ jobs:
             - Build Date: ${{ steps.date.outputs.current-date }}
             **Build Environment:**
             - OS: ubuntu-latest
-            - Clang Version: 19.0.0git-20240723
+            - Clang Version: ${{ env.CLANG_VERSION }}
           files: |
-            AnyKernel3-${{ env.KSUVER }}.zip
+            ${{ github.workspace }}/AnyKernel3-${{ env.KSUVER }}.zip
             ${{ github.workspace }}/kernel_workspace/src/android-kernel/out/arch/arm64/boot/Image
