@@ -497,7 +497,7 @@ jobs:
           echo "正在打隐藏应用补丁"
           patch -p1 -F 3 < 69_hide_stuff.patch
           echo "隐藏应用_patch完成"
-          sed -i "s/KBUILD_CFLAGS += -mcpu=oryon-1//" "Makefile"
+          sed -i "s/KBUILD_CFLAGS += -mcpu=oryon-1//" Makefile
 
       - name: Apply HOOK
         run: |
@@ -689,4 +689,4 @@ jobs:
           fi
 
       - name: Make AnyKernel3
-        
+        ru
