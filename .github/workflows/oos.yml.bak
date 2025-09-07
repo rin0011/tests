@@ -33,7 +33,6 @@ jobs:
           repository: brokestar233/android_kernel_common_oneplus_sm8750
           ref: v9
           path: kernel_workspace/android-kernel
-          fetch-depth: 1
 
       - name: Checkout susfs4ksu
         uses: actions/checkout@v4
