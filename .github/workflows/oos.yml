@@ -227,6 +227,10 @@ jobs:
           KCFLAGS: "-O2 -flto=thin -Wno-error"
           KMI: "SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
         run: |
+          # Install make explicitly to ensure availability
+          sudo apt-get update
+          sudo apt-get install -y make
+
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
 
           # Verify toolchain and print versions
@@ -235,6 +239,8 @@ jobs:
           clang --version
           command -v ld.lld >/dev/null || { echo "Error: ld.lld not found!"; exit 1; }
           ld.lld --version
+          command -v make >/dev/null || { echo "Error: make not found!"; exit 1; }
+          make --version
 
           # Generate kernel config
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
