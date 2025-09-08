@@ -217,7 +217,7 @@ jobs:
           ARCH: arm64
           SUBARCH: arm64
           HEADER_ARCH: arm64
-          PATH: ${{ env.CLANG_DIR }}/bin:${PATH}
+          PATH: ${{ env.CLANG_DIR }}/bin:$PATH
           KBUILD_BUILD_HOST: localhost
           KBUILD_BUILD_USER: Builder
           LLVM: 1
