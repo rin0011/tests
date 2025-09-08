@@ -33,6 +33,7 @@ jobs:
     # Permissions for the job
     permissions:
       contents: write # Required for uploading release artifacts
+      actions: write
 
     steps:
       # =================================================================
@@ -155,7 +156,7 @@ jobs:
           patch -p1 -F 3 < syscall_hooks.patch
 
           # Update Makefile with dynamic KSU version
-          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${{ steps.build_vars.outputs.ksu_version }}/" kernel/Makefile
+          #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${{ steps.build_vars.outputs.ksu_version }}/" kernel/Makefile
 
           # Remove defconfig check from build config
           sed -i 's/check_defconfig//' ./build.config.gki
