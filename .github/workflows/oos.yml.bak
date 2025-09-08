@@ -102,7 +102,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dwarves libelf-dev ccache automake flex bison build-essential \
                 zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
-                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu \
+                coreutils # Added coreutils to ensure 'which' command is available
 
           # Create and configure ccache directory
           mkdir -p "${{ env.CCACHE_DIR }}"
@@ -129,7 +130,6 @@ jobs:
       - name: Set Dynamic Build Variables
         id: build_vars
         run: |
-          # Set build date in UTC+8
           # Install KernelSU and compute version
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
@@ -140,10 +140,6 @@ jobs:
       - name: Patch and Configure Kernel Source
         run: |
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
-
-          # Configure git user for commands like revert
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Patch setlocalversion script and revert specific commit if needed
           sed -i -e 's/ -dirty//g' -e 's/OKI/android15-8/g' scripts/setlocalversion
@@ -210,14 +206,14 @@ jobs:
         id: build_kernel
         # Environment variables for build
         env:
-          KBUILD_BUILD_TIMESTAMP: ${{ steps.build_vars.outputs.build_date }} # Use dynamic build date
+          KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025' # Use dynamic build date
           CCACHE_BASEDIR: ${{ github.workspace }}
           CC: ccache clang
           CXX: ccache clang++
           ARCH: arm64
           SUBARCH: arm64
           HEADER_ARCH: arm64
-          PATH: ${{ env.CLANG_DIR }}/bin:$PATH
+          PATH: ${{ env.CLANG_DIR }}/bin:/usr/bin:/bin:$PATH # Explicitly include system paths
           KBUILD_BUILD_HOST: localhost
           KBUILD_BUILD_USER: Builder
           LLVM: 1
@@ -229,10 +225,11 @@ jobs:
 
           # Verify toolchain and print versions
           echo "===== Verifying Toolchain ====="
-          which clang || { echo "Error: Clang not found!"; exit 1; }
+          command -v clang >/dev/null || { echo "Error: Clang not found!"; exit 1; }
           clang --version
-          which ld.lld || { echo "Error: ld.lld not found!"; exit 1; }
+          command -v ld.lld >/dev/null || { echo "Error: ld.lld not found!"; exit 1; }
           ld.lld --version
+          command -v make >/dev/null || { echo "Error: make not found!"; exit 1; }
           make --version
 
           # Generate kernel config

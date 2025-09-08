@@ -130,23 +130,17 @@ jobs:
       - name: Set Dynamic Build Variables
         id: build_vars
         run: |
-          # Set build date in UTC+8
-          echo "build_date=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")" >> "$GITHUB_OUTPUT"
-
           # Install KernelSU and compute version
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
           # Calculate KSU version based on commit count
-          KSU_VERSION=$(($(git -C KernelSU rev-list --count susfs-main) + 10700))
+          #KSU_VERSION=$(($(git -C KernelSU rev-list --count susfs-main) + 10700))
+          KSU_VERSION=$(expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
           echo "ksu_version=$KSU_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Patch and Configure Kernel Source
         run: |
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
-
-          # Configure git user for commands like revert
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Patch setlocalversion script and revert specific commit if needed
           sed -i -e 's/ -dirty//g' -e 's/OKI/android15-8/g' scripts/setlocalversion
@@ -213,7 +207,7 @@ jobs:
         id: build_kernel
         # Environment variables for build
         env:
-          KBUILD_BUILD_TIMESTAMP: ${{ steps.build_vars.outputs.build_date }} # Use dynamic build date
+          KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025' # Use dynamic build date
           CCACHE_BASEDIR: ${{ github.workspace }}
           CC: ccache clang
           CXX: ccache clang++
@@ -228,10 +222,6 @@ jobs:
           KCFLAGS: "-O2 -flto=thin -Wno-error"
           KMI: "SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
         run: |
-          # Install make explicitly to ensure availability
-          sudo apt-get update
-          sudo apt-get install -y make coreutils
-
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
 
           # Verify toolchain and print versions
