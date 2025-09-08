@@ -33,6 +33,7 @@ jobs:
     # Permissions for the job
     permissions:
       contents: write # Required for uploading release artifacts
+      actions: write
 
     steps:
       # =================================================================
