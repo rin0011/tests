@@ -211,6 +211,7 @@ jobs:
       - name: Build Kernel
         run: |
         # Environment variables for build
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           export KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025'
           export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
           export CC="ccache clang"
