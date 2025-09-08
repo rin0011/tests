@@ -229,9 +229,7 @@ jobs:
           export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
-          which clang || { echo "错误: Clang 未找到！"; exit 1; }
           clang --version
-          which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
           ld.lld --version
 
           

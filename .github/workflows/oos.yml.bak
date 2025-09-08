@@ -254,8 +254,6 @@ jobs:
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
-              CLANG_TRIPLE=aarch64-linux-gnu- \
-              CROSS_COMPILE=aarch64-linux-gnu- \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
               | tee ../build.log
 
