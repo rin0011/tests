@@ -134,7 +134,8 @@ jobs:
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
           # Calculate KSU version based on commit count
-          KSU_VERSION=$(($(git -C KernelSU rev-list --count susfs-main) + 10700))
+          #KSU_VERSION=$(($(git -C KernelSU rev-list --count susfs-main) + 10700))
+          KSU_VERSION=$(expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
           echo "ksu_version=$KSU_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Patch and Configure Kernel Source

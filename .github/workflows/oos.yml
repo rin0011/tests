@@ -207,7 +207,7 @@ jobs:
         id: build_kernel
         # Environment variables for build
         env:
-          KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025' # Use dynamic build date
+          KBUILD_BUILD_TIMESTAMP: 'Mon May 12 09:09:59 UTC 2025' # Use dynamic build date
           CCACHE_BASEDIR: ${{ github.workspace }}
           CC: ccache clang
           CXX: ccache clang++
