@@ -102,7 +102,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dwarves libelf-dev ccache automake flex bison build-essential \
                 zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
-                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
 
           # Create and configure ccache directory
           mkdir -p "${{ env.CCACHE_DIR }}"
@@ -209,40 +209,39 @@ jobs:
       # Step 5: Compile kernel
       # =================================================================
       - name: Build Kernel
-        run: |
+        id: build_kernel
         # Environment variables for build
-          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          export KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025'
-          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
-          export CC="ccache clang"
-          export CXX="ccache clang++"
-          export ARCH=arm64
-          export SUBARCH=arm64
-          export HEADER_ARCH=arm64
-          export PATH=${{ env.CLANG_DIR }}/bin:${{ env.PATH }}
-          export KBUILD_BUILD_HOST=localhost
-          export KBUILD_BUILD_USER=Builder
-          export LLVM=1
-          export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
-          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
-    
-          echo "===== 验证工具链 ====="
-          which clang || { echo "错误: Clang 未找到！"; exit 1; }
+        env:
+          KBUILD_BUILD_TIMESTAMP: ${{ steps.build_vars.outputs.build_date }} # Use dynamic build date
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CC: ccache clang
+          CXX: ccache clang++
+          ARCH: arm64
+          SUBARCH: arm64
+          HEADER_ARCH: arm64
+          PATH: ${{ env.CLANG_DIR }}/bin:${PATH}
+          KBUILD_BUILD_HOST: localhost
+          KBUILD_BUILD_USER: Builder
+          LLVM: 1
+          LLVM_IAS: 1
+          KCFLAGS: "-O2 -flto=thin -Wno-error"
+          KMI: "SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
+        run: |
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
+
+          # Verify toolchain and print versions
+          echo "===== Verifying Toolchain ====="
+          which clang || { echo "Error: Clang not found!"; exit 1; }
           clang --version
-          which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
+          which ld.lld || { echo "Error: ld.lld not found!"; exit 1; }
           ld.lld --version
-    
-    
+
+          # Generate kernel config
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
-    
-          echo "===== 开始构建内核 ====="
-          make -s O=out -j$(nproc --all) \
-              ARCH=$ARCH \
-              SUBARCH=$SUBARCH \
-              HEADER_ARCH=$HEADER_ARCH \
-              CC="$CC" \
-              CXX="$CXX" \
+
+          # Start parallel kernel build
+          echo "===== Starting Kernel Build ====="
+          make O=out -j$(nproc --all) \
               LD=ld.lld \
               AR=llvm-ar \
               NM=llvm-nm \
@@ -251,11 +250,12 @@ jobs:
               READELF=llvm-readelf \
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
-              KCFLAGS="$KCFLAGS" \
-              KMI="$KMI" \
-              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE=aarch64-linux-gnu- \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" | tee ../build.log
+
           # Display ccache stats for debugging
-              ccache -s
+          ccache -s
 
       # =================================================================
       # Step 6: Package and release artifacts
@@ -269,7 +269,7 @@ jobs:
           else
             echo "Kernel Image not found! Build failed."
             echo "===== Tailing build log ====="
-            tail -n 100 ${{ github.workspace }}/kernel_workspace/build.log
+            tail -n 100 ${{ github.workspace }}/kernel_workspace/build.log || true
             exit 1
           fi
 
