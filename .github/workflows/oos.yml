@@ -217,7 +217,6 @@ jobs:
           LLVM: 1
           LLVM_IAS: 1
           KCFLAGS: "-O2 -flto=thin -Wno-error"
-          KMI_FLAGS: "SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
         run: |
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           
@@ -227,7 +226,7 @@ jobs:
           ld.lld --version
           
           # 生成内核配置文件
-          make O=out gki_defconfig
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
           
           # 开始并行编译内核
           echo "===== Starting Kernel Build ====="
@@ -242,8 +241,6 @@ jobs:
               STRIP=llvm-strip \
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
-              KMI="$KMI_FLAGS" \
-              KCFLAGS="$KCFLAGS" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" | tee ../build.log
           
           # 显示 ccache 统计信息，用于调试缓存命中率

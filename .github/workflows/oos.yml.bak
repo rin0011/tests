@@ -93,11 +93,9 @@ jobs:
           
           # 更新软件包列表并安装所有编译所需的依赖
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              git dwarves libelf-dev ccache automake flex bison build-essential \
-              zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler \
-              python3 pahole libssl-dev libffi-dev libxml2-dev libxslt1-dev \
-              libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu make
+          sudo apt-get install -y dwarves libelf-dev ccache automake flex bison build-essential \
+                zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
 
           # 创建并配置 ccache 缓存目录
           mkdir -p "${{ env.CCACHE_DIR }}"
@@ -219,7 +217,6 @@ jobs:
           LLVM: 1
           LLVM_IAS: 1
           KCFLAGS: "-O2 -flto=thin -Wno-error"
-          KMI_FLAGS: "SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
         run: |
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           
@@ -229,7 +226,7 @@ jobs:
           ld.lld --version
           
           # 生成内核配置文件
-          make O=out gki_defconfig
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
           
           # 开始并行编译内核
           echo "===== Starting Kernel Build ====="
@@ -245,7 +242,6 @@ jobs:
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
               KMI="$KMI_FLAGS" \
-              KCFLAGS="$KCFLAGS" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" | tee ../build.log
           
           # 显示 ccache 统计信息，用于调试缓存命中率
