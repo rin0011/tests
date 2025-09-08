@@ -94,7 +94,7 @@ jobs:
           
           # 更新软件包列表并安装所有编译所需的依赖
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          sudo apt-get install -y \
               git dwarves libelf-dev ccache automake flex bison build-essential \
               zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler \
               python3 make pahole libssl-dev libffi-dev libxml2-dev libxslt1-dev \
@@ -234,7 +234,7 @@ jobs:
           
           # 开始并行编译内核
           echo "===== Starting Kernel Build ====="
-          make -j$(nproc --all) O=out \
+          make O=out -j$(nproc --all) \
               LD=ld.lld \
               AR=llvm-ar \
               NM=llvm-nm \

@@ -234,7 +234,7 @@ jobs:
           
           # 开始并行编译内核
           echo "===== Starting Kernel Build ====="
-          make -j$(nproc --all) O=out \
+          make O=out -j$(nproc --all) \
               LD=ld.lld \
               AR=llvm-ar \
               NM=llvm-nm \
@@ -246,6 +246,7 @@ jobs:
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
               KMI="$KMI_FLAGS" \
+              KCFLAGS="$KCFLAGS" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" | tee ../build.log
           
           # 显示 ccache 统计信息，用于调试缓存命中率
