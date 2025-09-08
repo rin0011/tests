@@ -130,8 +130,6 @@ jobs:
         id: build_vars
         run: |
           # Set build date in UTC+8
-          echo "build_date=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")" >> "$GITHUB_OUTPUT"
-
           # Install KernelSU and compute version
           cd ${{ github.workspace }}/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
@@ -235,7 +233,6 @@ jobs:
           clang --version
           which ld.lld || { echo "Error: ld.lld not found!"; exit 1; }
           ld.lld --version
-          command -v make >/dev/null || { echo "Error: make not found!"; exit 1; }
           make --version
 
           # Generate kernel config
