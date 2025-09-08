@@ -1,1 +1,337 @@
-cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+# Workflow name
+name: Build Kernel
+
+# Workflow triggers
+on:
+  # Allow manual triggering
+  workflow_dispatch:
+  # Trigger on push of tags matching 'v*.*.*.*'
+  push:
+    tags:
+      - 'v*.*.*.*'
+
+# Global environment variables for all jobs and steps
+env:
+  TZ: Asia/Shanghai # Set timezone to Asia/Shanghai
+  # Ccache configuration for build acceleration
+  CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+  CCACHE_NOHASHDIR: "true"
+  CCACHE_HARDLINK: "true"
+  CCACHE_DIR: ${{ github.workspace }}/.ccache # Use hidden directory to avoid mixing with project files
+  CCACHE_MAXSIZE: 10G # Maximum ccache size
+  # Clang toolchain version
+  CLANG_VERSION: Clang-19.0.0git-20240723-release
+  CLANG_DIR: ${{ github.workspace }}/.clang # Use hidden directory for Clang
+
+# Jobs defined in the workflow
+jobs:
+  build:
+    # Job name, dynamically includes the actor who triggered it
+    name: Build Kernel by ${{ github.actor }}
+    # Runner environment
+    runs-on: ubuntu-latest
+    # Permissions for the job
+    permissions:
+      contents: write # Required for uploading release artifacts
+
+    steps:
+      # =================================================================
+      # Step 1: Checkout all necessary source repositories
+      # =================================================================
+      - name: Checkout Main Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }} # Checkout current repository
+          submodules: true # Handle git submodules automatically
+
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+        with:
+          repository: rin0011/android_kernel_common_oneplus_sm8750
+          ref: oneplus/sm8750_v_15.0.0_oneplus_ace5_pro
+          path: kernel_workspace/android-kernel # Checkout to specified subdirectory
+
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
+
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
+
+      # =================================================================
+      # Step 2: Cache management
+      # =================================================================
+      - name: Define Cache Key
+        id: cache_key
+        run: |
+          # Compute primary cache key including OS, Clang version, and hash of Kbuild files
+          echo "primary_key=${{ runner.os }}-${{ env.CLANG_VERSION }}-${{ hashFiles('kernel_workspace/android-kernel/**/Kbuild') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Build Cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            ${{ env.CLANG_DIR }}
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out
+          # Use computed primary key for exact match
+          key: ${{ steps.cache_key.outputs.primary_key }}
+          # Partial keys for fallback
+          restore-keys: |
+            ${{ runner.os }}-${{ env.CLANG_VERSION }}-
+
+      # =================================================================
+      # Step 3: Setup build environment and toolchain
+      # =================================================================
+      - name: Setup Build Environment
+        run: |
+          # Create 10GB swap space to prevent OOM errors
+          sudo fallocate -l 10G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
+          # Update package list and install all required build dependencies
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y dwarves libelf-dev ccache automake flex bison build-essential \
+                zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
+
+          # Create and configure ccache directory
+          mkdir -p "${{ env.CCACHE_DIR }}"
+          ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
+          ccache --set-config=max_size=${{ env.CCACHE_MAXSIZE }}
+          ccache -z # Reset ccache statistics
+
+      - name: Download and Extract Clang Toolchain
+        # Execute only if Clang cache missed
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "${{ env.CLANG_DIR }}"
+          cd "${{ env.CLANG_DIR }}"
+          CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz"
+          echo "Downloading Clang from $CLANG_URL"
+          wget -q "$CLANG_URL" -O clang.tar.gz
+          echo "Extracting Clang..."
+          tar -zxf clang.tar.gz
+          rm clang.tar.gz
+
+      # =================================================================
+      # Step 4: Prepare kernel source (patching, module integration, config modification)
+      # =================================================================
+      - name: Set Dynamic Build Variables
+        id: build_vars
+        run: |
+          # Set build date in UTC+8
+          echo "build_date=$(date -u -d "+8 hours" +"%Y-%m-%d %H:%M")" >> "$GITHUB_OUTPUT"
+
+          # Install KernelSU and compute version
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
+          # Calculate KSU version based on commit count
+          KSU_VERSION=$(($(git -C KernelSU rev-list --count susfs-main) + 10700))
+          echo "ksu_version=$KSU_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Patch and Configure Kernel Source
+        run: |
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
+
+          # Configure git user for commands like revert
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Patch setlocalversion script and revert specific commit if needed
+          sed -i -e 's/ -dirty//g' -e 's/OKI/android15-8/g' scripts/setlocalversion
+          # Uncomment and adjust if revert is required: git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c
+
+          # Integrate susfs patches
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
+          cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch
+          patch -p1 -F 3 < syscall_hooks.patch
+
+          # Update Makefile with dynamic KSU version
+          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${{ steps.build_vars.outputs.ksu_version }}/" kernel/Makefile
+
+          # Remove defconfig check from build config
+          sed -i 's/check_defconfig//' ./build.config.gki
+
+          # Append KSU and performance configs to gki_defconfig
+          echo "Appending KSU and performance configs to gki_defconfig..."
+          cat <<EOF >> arch/arm64/configs/gki_defconfig
+          # KernelSU and SUSFS Configuration
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_HOOK_KPROBES=n
+          CONFIG_KSU_TRACEPOINT_HOOK=n
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+
+          # Performance and Optimization
+          CONFIG_AUTOFDO_CLANG=y
+          CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
+          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+
+          # Disable unused crypto options
+          CONFIG_CRYPTO_LZ4K=n
+          CONFIG_CRYPTO_LZ4KD=n
+          CONFIG_CRYPTO_LZ4HC=n
+          CONFIG_CRYPTO_842=n
+
+          # Set local version string
+          CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
+          EOF
+
+      # =================================================================
+      # Step 5: Compile kernel
+      # =================================================================
+      - name: Build Kernel
+        id: build_kernel
+        run: |
+          cd ${{ github.workspace }}/kernel_workspace/android-kernel
+          # 将环境变量设置在 run 块中，而非步骤级别，以避免语法错误
+          export KBUILD_BUILD_TIMESTAMP='Mon May 12 09:09:59 UTC 2025'
+          export CCACHE_BASEDIR="$GITHUB_WORKSPACE"
+          export CC="ccache clang"
+          export CXX="ccache clang++"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export HEADER_ARCH=arm64
+          export PATH=${{ env.CLANG_DIR }}/bin:${{ env.PATH }}
+          export KBUILD_BUILD_HOST=localhost
+          export KBUILD_BUILD_USER=Builder
+          export LLVM=1
+          export LLVM_IAS=1
+          export KCFLAGS="-O2 -flto=thin -Wno-error"
+          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
+
+          echo "===== 验证工具链 ====="
+          which clang || { echo "错误: Clang 未找到！"; exit 1; }
+          clang --version
+          which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
+          ld.lld --version
+
+          
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
+
+          echo "===== 开始构建内核 ====="
+          make -s O=out -j$(nproc --all) \
+              ARCH=$ARCH \
+              SUBARCH=$SUBARCH \
+              HEADER_ARCH=$HEADER_ARCH \
+              CC="$CC" \
+              CXX="$CXX" \
+              LD=ld.lld \
+              AR=llvm-ar \
+              NM=llvm-nm \
+              OBJCOPY=llvm-objcopy \
+              OBJDUMP=llvm-objdump \
+              READELF=llvm-readelf \
+              OBJSIZE=llvm-size \
+              STRIP=llvm-strip \
+              KCFLAGS="$KCFLAGS" \
+              KMI="$KMI" \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE=aarch64-linux-gnu- \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
+              | tee ../build.log
+
+      # =================================================================
+      # Step 6: Package and release artifacts
+      # =================================================================
+      - name: Check for Build Artifacts
+        id: check_artifacts
+        run: |
+          # Check if Image file exists, fail if not
+          if [[ -f "${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image" ]]; then
+            echo "build_success=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Kernel Image not found! Build failed."
+            echo "===== Tailing build log ====="
+            tail -n 100 ${{ github.workspace }}/kernel_workspace/build.log || true
+            exit 1
+          fi
+
+      - name: Package AnyKernel3 Zip
+        # Run only if artifact check succeeds
+        if: steps.check_artifacts.outputs.build_success == 'true'
+        run: |
+          KSU_VERSION=${{ steps.build_vars.outputs.ksu_version }}
+          WORKSPACE=${{ github.workspace }}
+
+          # Copy kernel image to AnyKernel3 directory
+          cp "$WORKSPACE/kernel_workspace/android-kernel/out/arch/arm64/boot/Image" \
+             "$WORKSPACE/kernel_workspace/SukiSU_patch/AnyKernel3/"
+
+          # Package into zip file
+          cd "$WORKSPACE/kernel_workspace/SukiSU_patch/AnyKernel3"
+          zip -r9 "$WORKSPACE/AnyKernel3-$KSU_VERSION.zip" .
+
+      - name: Upload Artifacts
+        # Run only if artifact check succeeds
+        if: steps.check_artifacts.outputs.build_success == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-Build-${{ steps.build_vars.outputs.ksu_version }}
+          path: |
+            ${{ github.workspace }}/AnyKernel3-${{ steps.build_vars.outputs.ksu_version }}.zip
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+
+      - name: Save Build Cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ${{ env.CCACHE_DIR }}
+            ${{ env.CLANG_DIR }}
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out
+          # Use the same primary key as restore for saving
+          key: ${{ steps.cache_key.outputs.primary_key }}
+
+      - name: Create GitHub Release
+        # Run only if all previous steps succeed
+        if: success() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          # Authenticate with GITHUB_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Tag based on KSU version
+          tag_name: v${{ steps.build_vars.outputs.ksu_version }}
+          # Release title
+          name: "SukiSU Kernel v${{ steps.build_vars.outputs.ksu_version }}"
+          # Release body content
+          body: |
+            **Build Details**
+            - KernelSU Version: ${{ steps.build_vars.outputs.ksu_version }}
+            - Build Date: ${{ steps.build_vars.outputs.build_date }}
+
+            **Build Environment**
+            - OS: Ubuntu Latest
+            - Clang Version: ${{ env.CLANG_VERSION }}
+          # Files to upload to release
+          files: |
+            ${{ github.workspace }}/AnyKernel3-${{ steps.build_vars.outputs.ksu_version }}.zip
+            ${{ github.workspace }}/kernel_workspace/android-kernel/out/arch/arm64/boot/Image
