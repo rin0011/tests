@@ -47,10 +47,9 @@ jobs:
       - name: Checkout Kernel Source
         uses: actions/checkout@v4
         with:
-          repository: brokestar233/android_kernel_common_oneplus_sm8750
-          ref: v9
+          repository: rin0011/android_kernel_common_oneplus_sm8750
+          ref: oneplus/sm8750_v_15.0.0_oneplus_ace5_pro
           path: kernel_workspace/android-kernel # 检出到指定子目录
-          fetch-depth: 0
 
       - name: Checkout susfs4ksu
         uses: actions/checkout@v4
@@ -94,11 +93,11 @@ jobs:
           
           # 更新软件包列表并安装所有编译所需的依赖
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               git dwarves libelf-dev ccache automake flex bison build-essential \
               zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler \
-              python3 make pahole libssl-dev libffi-dev libxml2-dev libxslt1-dev \
-              libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
+              python3 pahole libssl-dev libffi-dev libxml2-dev libxslt1-dev \
+              libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu make
 
           # 创建并配置 ccache 缓存目录
           mkdir -p "${{ env.CCACHE_DIR }}"
@@ -145,7 +144,7 @@ jobs:
           
           # 修补 setlocalversion 脚本并撤销一个指定的 commit
           sed -i -e 's/ -dirty//g' -e 's/OKI/android15-8/g' scripts/setlocalversion
-          git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c || true
+          #git revert --no-edit 0dbc805bbbaa8bf36c1531560ba7abb4e4f2088c || true
           
           # 集成 susfs 补丁
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
