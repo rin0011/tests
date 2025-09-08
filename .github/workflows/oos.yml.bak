@@ -219,7 +219,7 @@ jobs:
           ARCH: arm64
           SUBARCH: arm64
           HEADER_ARCH: arm64
-          PATH: ${{ env.CLANG_DIR }}/bin:$PATH
+          PATH: ${{ env.CLANG_DIR }}/bin:${PATH}
           KBUILD_BUILD_HOST: localhost
           KBUILD_BUILD_USER: Builder
           LLVM: 1
@@ -231,10 +231,12 @@ jobs:
 
           # Verify toolchain and print versions
           echo "===== Verifying Toolchain ====="
-          command -v clang >/dev/null || { echo "Error: Clang not found!"; exit 1; }
+          which clang || { echo "Error: Clang not found!"; exit 1; }
           clang --version
-          command -v ld.lld >/dev/null || { echo "Error: ld.lld not found!"; exit 1; }
+          which ld.lld || { echo "Error: ld.lld not found!"; exit 1; }
           ld.lld --version
+          command -v make >/dev/null || { echo "Error: make not found!"; exit 1; }
+          make --version
 
           # Generate kernel config
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
