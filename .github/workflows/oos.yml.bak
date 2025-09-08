@@ -241,7 +241,6 @@ jobs:
               STRIP=llvm-strip \
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
-              KMI="$KMI_FLAGS" \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" | tee ../build.log
           
           # 显示 ccache 统计信息，用于调试缓存命中率
