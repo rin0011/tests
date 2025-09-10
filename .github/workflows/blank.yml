@@ -163,7 +163,6 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_AUTOFDO_CLANG=y
           CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
           CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
@@ -181,7 +180,7 @@ jobs:
           export ARCH=arm64
           export SUBARCH=arm64
           export HEADER_ARCH=arm64
-          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
+          export PATH=/kernel_workspace/clang-aosp/bin:$PATH
           export KBUILD_BUILD_HOST=localhost
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
