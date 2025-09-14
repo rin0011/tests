@@ -40,11 +40,17 @@ jobs:
           ref: gki-android15-6.6
           path: kernel_workspace/susfs4ksu
 
-      - name: Checkout SukiSU_patch
+      - name: Checkout kernel_patches
         uses: actions/checkout@v4
         with:
           repository: WildKernels/kernel_patches
           path: kernel_workspace/kernel_patches
+          
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
 
       # 2. 设置10G swap
       - name: Set swap to 10G
