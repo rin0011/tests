@@ -1,4 +1,4 @@
-name: Build 5pro
+name: Build ksun
 
 on:
   workflow_dispatch:
@@ -13,13 +13,12 @@ env:
   CCACHE_HARDLINK: "true"
   CCACHE_DIR: ${{ github.workspace }}/ccache
   CCACHE_MAXSIZE: 10G
+  CLANG_VERSION: Clang-19.0.0git-20240723
 
 jobs:
   build:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
-    env:
-      CLANG_VERSION: Clang-19.0.0git-20240723
     permissions:
       contents: write
       actions: read
@@ -31,8 +30,7 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: brokestar233/android_kernel_common_oneplus_sm8750
-          ref: v8
+          repository: rin0011/android_kernel_common_oneplus_sm8750
           path: kernel_workspace/android-kernel
 
       - name: Checkout susfs4ksu
@@ -45,19 +43,8 @@ jobs:
       - name: Checkout SukiSU_patch
         uses: actions/checkout@v4
         with:
-          repository: ShirkNeko/SukiSU_patch
-          path: kernel_workspace/SukiSU_patch
-
-      - name: Checkout sched_ext
-        uses: actions/checkout@v4
-        with:
-          repository: HanKuCha/sched_ext
-          path: kernel_workspace/sched_ext
-
-      - name: Copy sched_ext
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
-          cp -r ./sched_ext/* ./android-kernel/kernel/sched
+          repository: WildKernels/kernel_patches
+          path: kernel_workspace/kernel_patches
 
       # 2. 设置10G swap
       - name: Set swap to 10G
@@ -72,7 +59,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git dwarves libelf-dev ccache automake flex bison build-essential \
                 zlib1g-dev libncurses5-dev libc6-dev-i386 bc device-tree-compiler python3 make pahole \
-                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev
+                libssl-dev libffi-dev libxml2-dev libxslt1-dev libgmp-dev libmpfr-dev libmpc-dev gcc-aarch64-linux-gnu
           mkdir -p "${{ env.CCACHE_DIR }}"
           # 配置ccache
           ccache --set-config=cache_dir=${{ env.CCACHE_DIR }}
@@ -86,14 +73,6 @@ jobs:
         run: |
           current_date=$(TZ='Asia/Shanghai' date +'%Y-%m-%d %H:%M')
           echo "current-date=${current_date}" >> $GITHUB_OUTPUT
-
-      - name: Cache ThinLTO cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}/thinlto-cache
-          key: thinlto-cache-${{ runner.os }}-${{ env.CLANG_VERSION }}
-          restore-keys: |
-            thinlto-cache-${{ runner.os }}-
 
       # 6. 缓存 ccache
       - name: Cache ccache
@@ -118,9 +97,10 @@ jobs:
         if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
-          mkdir -p clang-aosp
-          wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
-          tar -C clang-aosp -zxvf zyclang.tar.gz
+          mkdir -p clang-aosp && cd clang-aosp
+          wget https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
+          tar -zxvf *.tar.gz > /dev/null
+          #unzip *.zip > /dev/null
 
 
       # 10. 修补 setlocalversion
@@ -129,15 +109,15 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
           sed -i 's/OKI/android15-8/g' setlocalversion
-
+          
       # 13. 安装 KernelSU
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
-          KSU_VERSION=$(cd KernelSU && expr $(/usr/bin/git rev-list --count susfs-main) + 10700)
+          curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          KSU_VERSION=$(cd KernelSU-Next && expr $(git rev-list --count HEAD 2>/dev/null || echo 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+          #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
       # 14. SUSFS适配及patch
       - name: Setup susfs
@@ -146,101 +126,18 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-          cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
+          cp ../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch ./
+          cp ../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch ./
+          cp ../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch ./
+          cp ../kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch ./
+          cp ../kernel_patches/69_hide_stuff.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          patch -p1 -F 3 < syscall_hooks.patch || true
-
-      # 15. 应用 HMBird GKI patch
-      - name: Apply HMBird GKI patch
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/drivers
-          cat << 'EOF' > hmbird_patch.c
-          #include <linux/init.h>
-          #include <linux/module.h>
-          #include <linux/of.h>
-          #include <linux/slab.h>
-          #include <linux/string.h>
-          #include <linux/printk.h>
-
-          static int __init hmbird_patch_init(void)
-          {
-              struct device_node *ver_np;
-              const char *type;
-              int ret;
-
-              ver_np = of_find_node_by_path("/soc/oplus,hmbird/version_type");
-              if (!ver_np) {
-                   pr_info("hmbird_patch: version_type node not found\n");
-                   return 0;
-              }
-
-              ret = of_property_read_string(ver_np, "type", &type);
-              if (ret) {
-                   pr_info("hmbird_patch: type property not found\n");
-                   of_node_put(ver_np);
-                   return 0;
-              }
-
-              if (strcmp(type, "HMBIRD_OGKI") != 0) {
-                   of_node_put(ver_np);
-                   return 0;
-              }
-
-              // property 替换流程修正&内存管理改进: 使用kzalloc确保清零并避免浅拷贝问题
-              struct property *prop = of_find_property(ver_np, "type", NULL);
-              if (prop) {
-                   // 分配新的属性结构体内存，并初始化为零
-                   struct property *new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
-                   if (!new_prop) {
-                        pr_err("hmbird_patch: kzalloc for new_prop failed\n");
-                        of_node_put(ver_np);
-                        return -ENOMEM;
-                   }
-                   new_prop->name = prop->name; // 复制属性名指针，通常是静态字符串
-                   new_prop->length = strlen("HMBIRD_GKI") + 1; // 新值的长度
-                   // 为新的属性值分配内存
-                   new_prop->value = kzalloc(new_prop->length, GFP_KERNEL);
-                   if (!new_prop->value) {
-                        pr_err("hmbird_patch: kzalloc for new_prop->value failed\n");
-                        kfree(new_prop); // 释放已分配的new_prop
-                        of_node_put(ver_np);
-                        return -ENOMEM;
-                   }
-                   strcpy(new_prop->value, "HMBIRD_GKI"); // 拷贝新值
-
-                   // 移除旧属性
-                   if (of_remove_property(ver_np, prop)) {
-                        pr_err("hmbird_patch: of_remove_property failed\n");
-                        kfree(new_prop->value);
-                        kfree(new_prop);
-                        of_node_put(ver_np);
-                        return -EINVAL;
-                   }
-                   // 添加新属性
-                   if (of_add_property(ver_np, new_prop)) {
-                        pr_err("hmbird_patch: of_add_property failed\n");
-                        kfree(new_prop->value);
-                        kfree(new_prop);
-                        of_node_put(ver_np);
-                        return -EINVAL;
-                   }
-                   pr_info("hmbird_patch: success from HMBIRD_OGKI to HMBIRD_GKI\n");
-              }
-              else {
-                  pr_info("hmbird_patch: type property structure not found\n");
-              }
-              of_node_put(ver_np);
-              return 0;
-          }
-          early_initcall(hmbird_patch_init);
-          MODULE_LICENSE("GPL");
-          MODULE_AUTHOR("reigadegr");
-          MODULE_DESCRIPTION("Forcefully convert HMBIRD_OGKI to HMBIRD_GKI.");
-          EOF
-
-          if ! grep -q "hmbird_patch.o" Makefile; then
-            echo "obj-y += hmbird_patch.o" >> Makefile
-          fi
+          patch -p1 --forward -F 3 < 69_hide_stuff.patch
+          patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
+          patch -p1 --forward < fix_kernel_compat.c.patch
+          patch -p1 --forward < fix_sucompat.c.patch
+          patch -p1 --forward --fuzz=3 < fix_core_hook.c.patch
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
 
 
       - name: Add SUSFS Configuration Settings
@@ -257,9 +154,7 @@ jobs:
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS_SUS_SU=n
-          CONFIG_KSU_MANUAL_HOOK=y
-          CONFIG_KSU_HOOK_KPROBES=n
-          CONFIG_KSU_TRACEPOINT_HOOK=n
+          CONFIG_KSU_KPROBES_HOOK=n
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_SUSFS_SUS_PATH=y
@@ -275,13 +170,9 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_LTO=y
+          CONFIG_AUTOFDO_CLANG=y
+          CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
           CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
-          CONFIG_THIN_ARCHIVES=y
-          CONFIG_CRYPTO_LZ4K=n
-          CONFIG_CRYPTO_LZ4KD=n
-          CONFIG_CRYPTO_LZ4HC=n
-          CONFIG_CRYPTO_842=n
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
@@ -311,7 +202,6 @@ jobs:
           which ld.lld || { echo "错误: ld.lld 未找到！"; exit 1; }
           ld.lld --version
 
-          mkdir -p ${{ env.CCACHE_DIR }}/thinlto-cache
 
           make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
 
@@ -332,8 +222,9 @@ jobs:
               STRIP=llvm-strip \
               KCFLAGS="$KCFLAGS" \
               KMI="$KMI" \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE=aarch64-linux-gnu- \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
-              KBUILD_LDFLAGS="--thinlto-cache-dir=${{ env.CCACHE_DIR }}/thinlto-cache"
 
           # 显示ccache统计
           ccache -s
@@ -387,7 +278,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.KSUVER }}
-          name: "sukisu ${{ env.KSUVER }}"
+          name: "ksun ${{ env.KSUVER }}"
           generate_release_notes: true
           body: |
             **Build Details**
