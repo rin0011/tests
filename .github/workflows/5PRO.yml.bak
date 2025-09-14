@@ -134,7 +134,6 @@ jobs:
           cp ../kernel_patches/69_hide_stuff.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           patch -p1 --forward -F 3 < 69_hide_stuff.patch
-          cd KernelSU-Next
           patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
           patch -p1 --forward < fix_kernel_compat.c.patch
           patch -p1 --forward < fix_sucompat.c.patch
