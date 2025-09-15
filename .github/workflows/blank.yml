@@ -185,7 +185,7 @@ jobs:
       - name: of
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          chmod +x /drivers/of/overwriter/overwrite_configs/convert_configs.sh
+          chmod +x drivers/of/overwriter/overwrite_configs/convert_configs.sh
           ./drivers/of/overwriter/overwrite_configs/convert_configs.sh
 
       # 18. Kernel 编译
