@@ -12,7 +12,7 @@ on:
           - Build OnePlus_SukiSU Ultra
           - Build 5
           - Build Kernel
-          - Build TEST2
+          - Build epicmann24
       count:
         description: '最多访问的运行次数'
         required: false
