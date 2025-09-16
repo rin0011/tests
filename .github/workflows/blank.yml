@@ -134,6 +134,8 @@ jobs:
           patch -p1 -F 3 gki_ptrace.patch
           patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+          echo 'obj-y += hmbird_patch.o' >> ./drivers/Makefile
+          patch -p1 -F 3 < "../kernel_patches/oneplus/hmbird/hmbird_kernel_patch.patch"
           cd KernelSU-Next
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
           cp ../../kernel_patches/next/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch ./
