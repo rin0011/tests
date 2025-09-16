@@ -161,7 +161,7 @@ jobs:
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
-          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_KSU_SUSFS_SUS_SU=y
           CONFIG_KSU_KPROBES_HOOK=n
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
@@ -212,7 +212,7 @@ jobs:
           ld.lld --version
 
 
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig Image
 
           echo "===== 开始构建内核 ====="
           make -s O=out -j$(nproc --all) \
