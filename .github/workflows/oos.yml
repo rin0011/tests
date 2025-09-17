@@ -165,9 +165,6 @@ jobs:
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_AUTOFDO_CLANG=y
-          CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
-          CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
@@ -188,8 +185,6 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          export KCFLAGS="-O2 -flto=thin -Wno-error"
-          export KMI="SYSTEM_DLKM_RE_SIGN=0 BUILD_SYSTEM_DLKM=0 KMI_SYMBOL_LIST_STRICT_MODE=0"
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
@@ -215,8 +210,6 @@ jobs:
               READELF=llvm-readelf \
               OBJSIZE=llvm-size \
               STRIP=llvm-strip \
-              KCFLAGS="$KCFLAGS" \
-              KMI="$KMI" \
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
               CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
