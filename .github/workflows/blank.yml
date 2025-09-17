@@ -131,7 +131,7 @@ jobs:
           cp ../kernel_patches/gki_ptrace.patch ./
           cp ../kernel_patches/next/scope_min_manual_hooks_v1.4.patch ./
           patch -p1 --forward -F 3 < 69_hide_stuff.patch
-          patch -p1 -F 3 gki_ptrace.patch
+          #patch -p1 -F 3 gki_ptrace.patch
           patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           #echo 'obj-y += hmbird_patch.o' >> ./drivers/Makefile
