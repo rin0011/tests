@@ -248,7 +248,7 @@ jobs:
         if: env.CHECK_IMAGE == 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/
-          git clone -b gki-2.0 https://github.com/WildKernels/AnyKernel3.git
+          git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
           cp ./android-kernel/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
