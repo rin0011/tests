@@ -133,7 +133,7 @@ jobs:
           patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
           cd Wild_KSU
-          cp ../../kernel_patches/wild/susfs_fix_patches/10_enable_susfs_for_ksu.patch ./
+          cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/10_enable_susfs_for_ksu.patch ./
           cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch ./
           cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch ./  
           cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch ./
