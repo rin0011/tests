@@ -108,14 +108,15 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
-          #sed -i 's/OKI/android15-8/g' setlocalversion
+          sed -i 's/OKI/android15-8/g' setlocalversion
           
       # 13. 安装 KernelSU
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
-          cd Wild_KSU          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          cd Wild_KSU
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
@@ -127,12 +128,10 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
           cp ../kernel_patches/69_hide_stuff.patch ./
-          cp ../kernel_patches/next/scope_min_manual_hooks_v1.4.patch ./
+          cp ../kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch ./
           patch -p1 --forward -F 3 < 69_hide_stuff.patch
           patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          #echo 'obj-y += hmbird_patch.o' >> ./drivers/Makefile
-          #patch -p1 -F 3 < "../kernel_patches/oneplus/hmbird/hmbird_kernel_patch.patch"
           cd Wild_KSU
           cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/10_enable_susfs_for_ksu.patch ./
           cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch ./
@@ -144,6 +143,7 @@ jobs:
           #patch -p1 --forward < fix_rules.c.patch
           patch -p1 --forward < fix_sucompat.c.patch
           patch -p1 --forward < fix_kernel_compat.c.patch
+          
 
 
       - name: Add SUSFS Configuration Settings
@@ -159,6 +159,7 @@ jobs:
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
+          CONFIG_KSU_SUSFS_SUS_SU=n
           CONFIG_KSU_KPROBES_HOOK=n
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
@@ -171,19 +172,12 @@ jobs:
           CONFIG_KSU_SUSFS_TRY_UMOUNT=y
           CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
           CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=n
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_KSU_SUSFS_SUS_SU=n
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
-
-      - name: of
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          chmod +x drivers/of/overwriter/overwrite_configs/convert_configs.sh
-          ./drivers/of/overwriter/overwrite_configs/convert_configs.sh
 
       # 18. Kernel 编译
       - name: Build kernel
@@ -202,7 +196,7 @@ jobs:
           export KBUILD_BUILD_USER=Builder
           export LLVM=1
           export LLVM_IAS=1
-          
+
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
           clang --version
@@ -210,7 +204,7 @@ jobs:
           ld.lld --version
 
 
-          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig Image
+          make O=out ARCH=$ARCH SUBARCH=$SUBARCH gki_defconfig
 
           echo "===== 开始构建内核 ====="
           make -s O=out -j$(nproc --all) \
@@ -254,7 +248,7 @@ jobs:
         if: env.CHECK_IMAGE == 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/
-          git clone https://github.com/rin0011/AnyKernel3.git
+          git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
           cp ./android-kernel/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
@@ -285,7 +279,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.KSUVER }}
-          name: "wildksu ${{ env.KSUVER }}"
+          name: "wild_ksu ${{ env.KSUVER }}"
           generate_release_notes: true
           body: |
             **Build Details**
