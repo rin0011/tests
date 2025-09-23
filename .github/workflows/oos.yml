@@ -128,7 +128,7 @@ jobs:
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
           cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          patch -p1 -F 3 < syscall_hooks.patch || true
+          #patch -p1 -F 3 < syscall_hooks.patch || true
           
           
 
@@ -148,7 +148,6 @@ jobs:
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS_SUS_SU=n
           CONFIG_KSU_MANUAL_HOOK=y
-          CONFIG_KSU_HOOK_KPROBES=n
           CONFIG_KSU_TRACEPOINT_HOOK=n
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
