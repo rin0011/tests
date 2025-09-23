@@ -1,4 +1,4 @@
-name: Build epicmann24
+name: Build 5
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write
+      actions: read
 
     steps:
       - name: Checkout main repo
@@ -40,12 +40,7 @@ jobs:
           ref: gki-android15-6.6
           path: kernel_workspace/susfs4ksu
 
-      - name: Checkout kernel_patches
-        uses: actions/checkout@v4
-        with:
-          repository: WildKernels/kernel_patches
-          path: kernel_workspace/kernel_patches
-          
+
       # 2. 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
@@ -108,15 +103,14 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
-
+          sed -i 's/OKI/android15-8/g' setlocalversion
           
       # 13. 安装 KernelSU
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
-          cd Wild_KSU
-          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
+          KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
@@ -127,22 +121,10 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-          cp ../kernel_patches/69_hide_stuff.patch ./
-          cp ../kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch ./
-          patch -p1 --forward -F 3 < 69_hide_stuff.patch
-          patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
+          #cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          cd Wild_KSU
-          cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/10_enable_susfs_for_ksu.patch ./
-          cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_core_hook.c.patch ./
-          cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_sucompat.c.patch ./  
-          cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_rules.c.patch ./
-          cp ../../kernel_patches/wild/susfs_fix_patches/v1.5.9/fix_kernel_compat.c.patch ./
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch  || true
-          patch -p1 --forward --fuzz=3 < fix_core_hook.c.patch
-          #patch -p1 --forward < fix_rules.c.patch
-          patch -p1 --forward < fix_sucompat.c.patch
-          patch -p1 --forward < fix_kernel_compat.c.patch
+          #patch -p1 -F 3 < syscall_hooks.patch || true
+          
           
 
 
@@ -160,7 +142,8 @@ jobs:
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS_SUS_SU=n
-          CONFIG_KSU_KPROBES_HOOK=n
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_TRACEPOINT_HOOK=n
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_SUSFS_SUS_PATH=y
@@ -172,7 +155,7 @@ jobs:
           CONFIG_KSU_SUSFS_TRY_UMOUNT=y
           CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
           CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-          CONFIG_KSU_SUSFS_ENABLE_LOG=n
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
           CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
           CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
           CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
@@ -184,6 +167,8 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           chmod +x drivers/of/overwriter/overwrite_configs/convert_configs.sh
           ./drivers/of/overwriter/overwrite_configs/convert_configs.sh
+
+
 
       # 18. Kernel 编译
       - name: Build kernel
@@ -253,7 +238,7 @@ jobs:
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace/
+          cd $GITHUB_WORKSPACE/kernel_workspace
           git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
           cp ./android-kernel/out/arch/arm64/boot/Image AnyKernel3/
@@ -285,7 +270,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.KSUVER }}
-          name: "wild_ksu ${{ env.KSUVER }}"
+          name: "sukisu ${{ env.KSUVER }}"
           generate_release_notes: true
           body: |
             **Build Details**

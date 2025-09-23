@@ -230,6 +230,7 @@ jobs:
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
           git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
           cp ./android-kernel/out/arch/arm64/boot/Image AnyKernel3/
