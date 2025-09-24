@@ -1,4 +1,4 @@
-name: Build sukisu no sufs
+name: Build wild no sufs
 
 on:
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: read
+      actions: write
 
     steps:
       - name: Checkout main repo
@@ -30,10 +30,15 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: TheGeniusClub/android_kernel_common_oneplus_sm8750
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
           path: kernel_workspace/android-kernel
 
-
+      - name: Checkout kernel_patches
+        uses: actions/checkout@v4
+        with:
+          repository: WildKernels/kernel_patches
+          path: kernel_workspace/kernel_patches
+          
       # 2. 设置10G swap
       - name: Set swap to 10G
         uses: pierotofy/set-swap-space@master
@@ -102,10 +107,20 @@ jobs:
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
-          KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
+          curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/wild/kernel/setup.sh" | bash -s wild
+          cd Wild_KSU
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+
+      # 14. SUSFS适配及patch
+      - name: Setup susfs
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          cp ../kernel_patches/wild/hooks/scope_min_manual_hooks_v1.4.patch ./
+          patch -p1 --forward -F 3 < scope_min_manual_hooks_v1.4.patch
+          
+
 
       - name: Add SUSFS Configuration Settings
         run: |
@@ -119,8 +134,8 @@ jobs:
 
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
-          CONFIG_KSU_MANUAL_HOOK=y
-          CONFIG_KSU_TRACEPOINT_HOOK=n
+          CONFIG_KSU=y
+          CONFIG_KSU_KPROBES_HOOK=n
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
@@ -192,7 +207,7 @@ jobs:
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
+          cd $GITHUB_WORKSPACE/kernel_workspace/
           git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
           cp ./android-kernel/out/arch/arm64/boot/Image AnyKernel3/
@@ -224,7 +239,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.KSUVER }}
-          name: "sukisu ${{ env.KSUVER }}"
+          name: "wild_ksu ${{ env.KSUVER }}"
           generate_release_notes: true
           body: |
             **Build Details**
