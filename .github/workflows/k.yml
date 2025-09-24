@@ -119,6 +119,8 @@ jobs:
 
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_TRACEPOINT_HOOK=n
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
