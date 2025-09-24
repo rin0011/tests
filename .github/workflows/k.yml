@@ -33,13 +33,6 @@ jobs:
           repository: TheGeniusClub/android_kernel_common_oneplus_sm8750
           path: kernel_workspace/android-kernel
 
-      - name: Checkout susfs4ksu
-        uses: actions/checkout@v4
-        with:
-          repository: ShirkNeko/susfs4ksu
-          ref: gki-android15-6.6
-          path: kernel_workspace/susfs4ksu
-
 
       # 2. 设置10G swap
       - name: Set swap to 10G
@@ -114,20 +107,6 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
-      # 14. SUSFS适配及patch
-      - name: Setup susfs
-        run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
-          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
-          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-          #cp ../SukiSU_patch/hooks/syscall_hooks.patch ./
-          #patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          #patch -p1 -F 3 < syscall_hooks.patch || true
-          
-          
-
-
       - name: Add SUSFS Configuration Settings
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
@@ -140,25 +119,6 @@ jobs:
 
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
-          CONFIG_KSU=y
-          CONFIG_KSU_SUSFS_SUS_SU=n
-          CONFIG_KSU_MANUAL_HOOK=y
-          CONFIG_KSU_TRACEPOINT_HOOK=n
-          CONFIG_KSU_SUSFS=y
-          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
-          CONFIG_KSU_SUSFS_SUS_PATH=y
-          CONFIG_KSU_SUSFS_SUS_MOUNT=y
-          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
-          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
-          CONFIG_KSU_SUSFS_SUS_KSTAT=y
-          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
-          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
-          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-          CONFIG_KSU_SUSFS_ENABLE_LOG=y
-          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
-          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
-          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
