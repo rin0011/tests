@@ -9,7 +9,7 @@ on:
         default: oneplus_ace5_pro
         options:
           - oneplus_ace5_pro
-          - bate1
+          - beta1
 
       HOOK:
         type: choice
