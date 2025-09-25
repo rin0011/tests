@@ -341,6 +341,13 @@ jobs:
           name: Image-${{ env.KSUVER }}
           path: kernel_workspace/android-kernel/out/arch/arm64/boot/Image
 
+      - name: Upload boot
+        if: env.CHECK_IMAGE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image-${{ env.KSUVER }}
+          path: kernel_workspace/boot-${KSUVER}.img
+
       # 22. 上传 AnyKernel3
       - name: Upload AnyKernel3
         if: env.CHECK_IMAGE == 'true'
