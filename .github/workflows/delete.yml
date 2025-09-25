@@ -9,9 +9,9 @@ on:
         required: true
         default: 'Build OnePlus_SukiSU Ultra'
         options:
-          - Build OnePlus_SukiSU Ultra
-          - Build 5
-          - Build Kernel
+          - Build sukisu
+          - Build wild
+          - Build wild no sufs
           - Build epicmann24
       count:
         description: '最多访问的运行次数'
