@@ -2,6 +2,19 @@ name: Build wild no sufs
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "请输入要获取的 release 版本 tag（如 PKR110_15.0.0.840(CN01)，留空则自动获取最新）"
+        required: false
+      file_name:
+        description: "请选择要获取的文件"
+        required: true
+        default: boot.img
+        type: choice
+        options:
+          - boot.img
+          - init_boot.img
+          - fastboot_firmware.zip
   push:
     tags:
       - 'v*.*.*.*'  # 仅在推送匹配 v*.*.* 的 tag 时触发
@@ -44,6 +57,46 @@ jobs:
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 10
+
+      - name: Get asset download url from tag and file name
+        id: get-asset-url
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          file="${{ github.event.inputs.file_name }}"
+
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            tag="${{ github.event.inputs.tag_name }}"
+            api="https://api.github.com/repos/rin0011/opace5_pro_fw/releases/tags/$tag"
+            asset_url=$(curl -s "$api" | jq -r --arg file "$file" '.assets[] | select(.name==$file) | .browser_download_url')
+            if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
+              echo "::error::未找到 $file (tag: $tag)"
+              exit 1
+            fi
+          else
+            # 自动获取最新 release
+            api="https://api.github.com/repos/rin0011/opace5_pro_fw/releases/latest"
+            asset_url=$(curl -s "$api" | jq -r --arg file "$file" '.assets[] | select(.name==$file) | .browser_download_url')
+            if [ -z "$asset_url" ] || [ "$asset_url" == "null" ]; then
+              echo "::error::未找到最新发行版中的 $file"
+              exit 1
+            fi
+          fi
+          echo "ASSET_URL=$asset_url" >> $GITHUB_ENV
+
+      - name: Download selected asset
+        run: |
+          file="${{ github.event.inputs.file_name }}"
+          curl -fL "$ASSET_URL" -o "$file"
+          if [ ! -f "$file" ]; then
+            echo "::error::文件下载失败"
+            exit 1
+          fi
+          filesize=$(wc -c < "$file")
+          echo "$file 文件大小: $filesize 字节"
+          if [ "$filesize" -lt 10240 ]; then
+            echo "::warning::$file 文件大小异常 ($filesize 字节) - 可能是无效文件"
+          fi
+          echo "BOOT_IMG_PATH=$GITHUB_WORKSPACE/$file" >> $GITHUB_ENV
 
       # 3. 环境准备
       - name: Setup build kernel environment
@@ -215,6 +268,71 @@ jobs:
           zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
           mv ../AnyKernel3-${{ env.KSUVER }}.zip $GITHUB_WORKSPACE/
 
+      # 获取 Magisk 最新版本和下载链接
+      - name: Get Magisk latest version info
+        id: magisk_version
+        run: |
+          MAGISK_JSON=$(curl -s https://api.github.com/repos/topjohnwu/Magisk/releases/latest)
+          MAGISK_VERSION=$(echo "$MAGISK_JSON" | jq -r .tag_name)
+          MAGISK_URL=$(echo "$MAGISK_JSON" | jq -r '.assets[] | select(.name | test("\\.apk$")) | .browser_download_url')
+          echo "MAGISK_VERSION=$MAGISK_VERSION" >> $GITHUB_ENV
+          echo "MAGISK_URL=$MAGISK_URL" >> $GITHUB_ENV
+
+      # 基于版本号缓存 Magisk APK
+      - name: Cache Magisk APK
+        id: cache-magisk-apk
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/Magisk.apk
+          key: magisk-apk-${{ env.MAGISK_VERSION }}
+
+      # 未命中缓存时自动下载最新 Magisk APK
+      - name: Download Magisk APK
+        if: steps.cache-magisk-apk.outputs.cache-hit != 'true'
+        run: |
+          wget -O Magisk.apk "$MAGISK_URL"
+
+      # 解包 magiskboot 可执行文件
+      - name: Extract magiskboot from Magisk APK
+        run: |
+          unzip -o Magisk.apk 'lib/x86_64/libmagiskboot.so' -d magisk_extract
+          mv magisk_extract/lib/x86_64/libmagiskboot.so magiskboot
+          chmod +x magiskboot
+          rm -rf magisk_extract
+          echo "MAGISKBOOT_PATH=${GITHUB_WORKSPACE}/magiskboot" >> $GITHUB_ENV
+
+      - name: Repack kernel to boot image
+        if: ${{ env.CHECK_IMAGE == 'true' }}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          if [ ! -f "$MAGISKBOOT_PATH" ]; then
+            echo "::error::magiskboot tool not found at $MAGISKBOOT_PATH"
+            exit 1
+          fi
+          if [ ! -f "$BOOT_IMG_PATH" ]; then
+            echo "::error::Original boot.img not found at $BOOT_IMG_PATH"
+            exit 1
+          fi
+          mkdir -p repack_workdir
+          cd repack_workdir
+          cp "$BOOT_IMG_PATH" ./boot.img
+          "$MAGISKBOOT_PATH" unpack ./boot.img
+          if [ ! -f "kernel" ]; then
+            echo "::error::Failed to unpack boot.img"
+            ls -la
+            exit 1
+          fi
+          rm -f kernel
+          cp "../kernel_workspace/android-kernel/out/arch/arm64/boot/Image" kernel
+          "$MAGISKBOOT_PATH" repack ./boot.img
+          if [ ! -f "new-boot.img" ]; then
+            echo "::error::Failed to repack boot.img"
+            exit 1
+          fi
+          mv new-boot.img "../boot-${KSUVER}.img"
+          cd ..
+          echo "REPACKED_BOOT_IMG_PATH=$GITHUB_WORKSPACE/boot-${KSUVER}.img" >> $GITHUB_ENV
+
       # 21. 上传 kernel Image
       - name: Upload Image
         if: env.CHECK_IMAGE == 'true'
@@ -251,3 +369,4 @@ jobs:
           files: |
             AnyKernel3-${{ env.KSUVER }}.zip
             kernel_workspace/android-kernel/out/arch/arm64/boot/Image
+            ${{ env.REPACKED_BOOT_IMG_PATH }}
