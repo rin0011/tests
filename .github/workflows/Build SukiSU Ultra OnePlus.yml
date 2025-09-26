@@ -262,7 +262,7 @@ jobs:
           FILE="${{ github.event.inputs.FILE }}"
           cp "$GITHUB_WORKSPACE/.repo/manifests_fallback/${FILE}.xml" ".repo/manifests/${FILE}.xml"
           repo init -u https://github.com/rin0011/kernel_manifest.git -b oneplus/${{env.CPU}} -m "${FILE}.xml" --repo-rev=v2.16 --depth=1 --no-clone-bundle --no-tags
-          repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync
+          repo sync -c -j$(nproc) --no-clone-bundle --no-tags --force-sync --fail-fast
 
           for dir in kernel_platform/common kernel_platform/msm-kernel; do
             if [ -e "$dir/BUILD.bazel" ]; then
@@ -278,7 +278,7 @@ jobs:
           rm -rf clang-r510928
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           mkdir clang-r522817
-          tar -C clang-r522817 -zxvf zyclang.tar.gz
+          tar -C clang-r522817/ -zxvf zyclang.tar.gz
           export PATH=$PATH:$(pwd)/clang-r522817/bin
           which clang
           clang --version
