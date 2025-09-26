@@ -276,7 +276,7 @@ jobs:
           cd kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           mkdir clang-r522817
-          tar -C clang-r522817 -xvf zyclang.tar.gz
+          tar -C clang-r522817 -zxvf zyclang.tar.gz
           export PATH=$PATH:$(pwd)/clang-r522817/bin
           which clang
           clang --version
