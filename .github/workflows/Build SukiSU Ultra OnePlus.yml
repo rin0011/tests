@@ -273,7 +273,7 @@ jobs:
 
       - name: use zyclang
         run: |
-          cd kernel_platform/prebuilts/clang/host/linux-x86
+          cd kernel_workspace/kernel_platform/prebuilts/clang/host/linux-x86
           wget -O zyclang.tar.gz https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz
           mkdir r19
           tar -C r19 -xvf zyclang.tar.gz
