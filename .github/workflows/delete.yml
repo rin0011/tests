@@ -12,7 +12,7 @@ on:
           - Build sukisu
           - Build wild
           - Build wild no sufs
-          - Build epicmann24
+          - Build OnePlus_SukiSU
       count:
         description: '最多访问的运行次数'
         required: false
