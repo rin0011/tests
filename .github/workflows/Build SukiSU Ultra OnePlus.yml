@@ -590,24 +590,6 @@ jobs:
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$CONFIG_FILE"
 
-          # TMPFS配置*
-          echo "CONFIG_TMPFS_XATTR=y" >> "$CONFIG_FILE"
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> "$CONFIG_FILE"
-
-          # BBR配置*
-          echo "CONFIG_TCP_CONG_ADVANCED=y" >> "$CONFIG_FILE"
-          echo "CONFIG_TCP_CONG_BBR=y" >> "$CONFIG_FILE"
-          echo "CONFIG_NET_SCH_FQ=y" >> "$CONFIG_FILE"
-          echo "CONFIG_TCP_CONG_BIC=n" >> "$CONFIG_FILE"
-          echo "CONFIG_TCP_CONG_WESTWOOD=n" >> "$CONFIG_FILE"
-          echo "CONFIG_TCP_CONG_HTCP=n" >> "$CONFIG_FILE"
-
-          # ECN配置*
-          echo "CONFIG_IP_ECN=y" >> "$CONFIG_FILE"
-          echo "CONFIG_TCP_ECN=y" >> "$CONFIG_FILE"
-          echo "CONFIG_IPV6_ECN=y" >> "$CONFIG_FILE"
-          echo "CONFIG_IP_NF_TARGET_ECN=y" >> "$CONFIG_FILE"
-
           # 移除构建审查
           sed -i 's/check_defconfig//' ./common/build.config.gki
 
@@ -636,17 +618,6 @@ jobs:
               fi
             fi
           done
-
-      - name: Enable lto=thin For FAST
-        if: ${{ (env.KERNEL_VERSION == '5.10' || env.KERNEL_VERSION == '5.15') && github.event.inputs.FAST_BUILD == 'true' }}
-        run: |
-          cd kernel_workspace/kernel_platform
-          DEFCONFIG=./common/arch/arm64/configs/gki_defconfig
-          echo "Enabling ThinLTO in $DEFCONFIG"
-          sed -i 's/^CONFIG_LTO=n/CONFIG_LTO=y/' "$DEFCONFIG"
-          sed -i 's/^CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' "$DEFCONFIG"
-          sed -i 's/^CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' "$DEFCONFIG"
-          grep -q '^CONFIG_LTO_CLANG_THIN=y' "$DEFCONFIG" || echo 'CONFIG_LTO_CLANG_THIN=y' >> "$DEFCONFIG"
 
       - name: Build Kernel FAST
         if: ${{ github.event.inputs.FAST_BUILD == 'true' }}
