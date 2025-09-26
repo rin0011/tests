@@ -280,6 +280,7 @@ jobs:
           mkdir clang-r522817
           tar -C clang-r522817/ -zxvf zyclang.tar.gz
           export PATH=$PATH:$(pwd)/clang-r522817/bin
+          ls -a
           which clang
           clang --version
 
