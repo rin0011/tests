@@ -53,6 +53,11 @@ jobs:
           ref: gki-android15-6.6
           path: kernel_workspace/susfs4ksu
 
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch   
 
       - name: Get asset download url from tag and file name
         id: get-asset-url
@@ -167,7 +172,9 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
+          cp ../SukiSU_patch/hooks/scope_min_manual_hooks_v1.5.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+          patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
           
 
       - name: Add SUSFS Configuration Settings

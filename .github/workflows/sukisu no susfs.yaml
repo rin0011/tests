@@ -43,9 +43,15 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: rin0011/android_kernel_common_oneplus_sm8750
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
+          ref: v8
           path: kernel_workspace/android-kernel
 
+      - name: Checkout SukiSU_patch
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch
 
       - name: Get asset download url from tag and file name
         id: get-asset-url
@@ -152,6 +158,12 @@ jobs:
           KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+
+      - name: Setup hook
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          cp ../SukiSU_patch/hooks/scope_min_manual_hooks_v1.5.patch ./
+          patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
           
 
       - name: Add SUSFS Configuration Settings
