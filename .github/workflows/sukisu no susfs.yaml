@@ -181,8 +181,39 @@ jobs:
           CONFIG_KSU=y
           CONFIG_KSU_MANUAL_HOOK=y
           CONFIG_KSU_TRACEPOINT_HOOK=n
+          CONFIG_BPF_STREAM_PARSER=y
+          CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
+          CONFIG_NETFILTER_XT_SET=y
+          CONFIG_IP_SET=y
+          CONFIG_IP_SET_MAX=65534
+          CONFIG_IP_SET_BITMAP_IP=y
+          CONFIG_IP_SET_BITMAP_IPMAC=y
+          CONFIG_IP_SET_BITMAP_PORT=y
+          CONFIG_IP_SET_HASH_IP=y
+          CONFIG_IP_SET_HASH_IPMARK=y
+          CONFIG_IP_SET_HASH_IPPORT=y
+          CONFIG_IP_SET_HASH_IPPORTIP=y
+          CONFIG_IP_SET_HASH_IPPORTNET=y
+          CONFIG_IP_SET_HASH_IPMAC=y
+          CONFIG_IP_SET_HASH_MAC=y
+          CONFIG_IP_SET_HASH_NETPORTNET=y
+          CONFIG_IP_SET_HASH_NET=y
+          CONFIG_IP_SET_HASH_NETNET=y
+          CONFIG_IP_SET_HASH_NETPORT=y
+          CONFIG_IP_SET_HASH_NETIFACE=y
+          CONFIG_IP_SET_LIST_SET=y
+          CONFIG_IP6_NF_NAT=y
+          CONFIG_IP6_NF_TARGET_MASQUERADE=y
           CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
+
+      - name: rustc
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          wget -O pahole.tar.gz https://github.com/rin0011/tests/releases/download/rust/pahole.tar.gz
+          wget -O rust.tar.gz https://github.com/rin0011/tests/releases/download/rust/rust.tar.gz
+          tar -zxvf rust.tar.gz
+          tar -zxvf pahole.tar.gz
 
       # 18. Kernel 编译
       - name: Build kernel
@@ -199,8 +230,9 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
           export KBUILD_BUILD_HOST=localhost
           export KBUILD_BUILD_USER=Builder
+          export PATH=$GITHUB_WORKSPACE/kernel_workspace/rust-ks-kernel.lnx.4.0.r1-rel-linux-x86-1.73.0b/linux-x86/1.73.0b/bin/rustc:$PATH
+          export PATH=$GITHUB_WORKSPACE/kernel_workspace/build-tools-ks-kernel.lnx.4.0.r1-rel-linux-x86/linux-x86/bin/pahole:$PATH
           export LLVM=1
-          export LLVM_IAS=1
 
           echo "===== 验证工具链 ====="
           which clang || { echo "错误: Clang 未找到！"; exit 1; }
@@ -228,7 +260,9 @@ jobs:
               STRIP=llvm-strip \
               CLANG_TRIPLE=aarch64-linux-gnu- \
               CROSS_COMPILE=aarch64-linux-gnu- \
-              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
+              RUSTC=$GITHUB_WORKSPACE/kernel_workspace/rust-ks-kernel.lnx.4.0.r1-rel-linux-x86-1.73.0b/linux-x86/1.73.0b/bin/rustc \
+              PAHOLE=$GITHUB_WORKSPACE/kernel_workspace/build-tools-ks-kernel.lnx.4.0.r1-rel-linux-x86/linux-x86/bin/pahole \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" 
 
           # 显示ccache统计
           ccache -s
