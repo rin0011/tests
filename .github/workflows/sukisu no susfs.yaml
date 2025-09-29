@@ -162,7 +162,9 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           cp ../SukiSU_patch/hooks/scope_min_manual_hooks_v1.5.patch ./
-          patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
+          cp ../SukiSU_patch/hooks/sukisu_tracepoint_hooks_v1.1.patch ./
+          #patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
+          patch -p1 -F 3 < sukisu_tracepoint_hooks_v1.1.patch || true
           
 
       - name: Add SUSFS Configuration Settings
@@ -178,8 +180,8 @@ jobs:
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
-          CONFIG_KSU_MANUAL_HOOK=y
-          CONFIG_KSU_TRACEPOINT_HOOK=n
+          CONFIG_KSU_MANUAL_HOOK=n
+          CONFIG_KSU_TRACEPOINT_HOOK=y
           CONFIG_BPF_STREAM_PARSER=y
           CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
           CONFIG_NETFILTER_XT_SET=y
