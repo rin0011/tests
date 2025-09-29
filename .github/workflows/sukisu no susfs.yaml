@@ -372,8 +372,8 @@ jobs:
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: Image-${{ env.KSUVER }}
-          path: kernel_workspace/boot-${{ env.KSUVER }}.img
+          name: boot-${{ env.KSUVER }}
+          path: boot-${{ env.KSUVER }}.img
 
       # 22. 上传 AnyKernel3
       - name: Upload AnyKernel3
