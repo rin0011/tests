@@ -371,7 +371,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Image-${{ env.KSUVER }}
-          path: kernel_workspace/boot-${KSUVER}.img
+          path: ${{ env.REPACKED_BOOT_IMG_PATH }}
 
       # 22. 上传 AnyKernel3
       - name: Upload AnyKernel3
