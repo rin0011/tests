@@ -243,6 +243,12 @@ jobs:
           tar -zxvf rust.tar.gz
           tar -zxvf pahole.tar.gz
 
+      - name: of
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          chmod +x drivers/of/overwriter/overwrite_configs/convert_configs.sh
+          ./drivers/of/overwriter/overwrite_configs/convert_configs.sh
+
       # 18. Kernel 编译
       - name: Build kernel
         run: |
