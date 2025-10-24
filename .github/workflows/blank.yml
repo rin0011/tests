@@ -154,7 +154,6 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel/scripts
           sed -i 's/ -dirty//g' setlocalversion
-          sed -i 's/OKI/android15-8/g' setlocalversion
           
       # 13. 安装 KernelSU
       - name: Setup KernelSU
