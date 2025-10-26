@@ -162,7 +162,6 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
           KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
       # 14. SUSFS适配及patch
       - name: Setup susfs
@@ -293,7 +292,7 @@ jobs:
               CROSS_COMPILE=aarch64-linux-gnu- \
               RUSTC=$GITHUB_WORKSPACE/kernel_workspace/rust-ks-kernel.lnx.4.0.r1-rel-linux-x86-1.73.0b/linux-x86/1.73.0b/bin/rustc \
               PAHOLE=$GITHUB_WORKSPACE/kernel_workspace/build-tools-ks-kernel.lnx.4.0.r1-rel-linux-x86/linux-x86/bin/pahole \
-              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" 
 
           # 显示ccache统计
           ccache -s
