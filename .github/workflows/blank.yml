@@ -209,7 +209,6 @@ jobs:
           CONFIG_KSU_SUSFS_SUS_SU=n
           CONFIG_TMPFS_XATTR=y
           CONFIG_TMPFS_POSIX_ACL=y
-          CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           CONFIG_IP_SET=y
           CONFIG_IP_NF_TARGET_TTL=y
           CONFIG_IP6_NF_TARGET_HL=y
