@@ -300,7 +300,7 @@ jobs:
           
           else
             cd "$GITHUB_WORKSPACE/kernel_workspace"
-            LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
+            LTO=thin ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} perf
           fi
 
           # 显示ccache统计信息
