@@ -328,7 +328,7 @@ jobs:
             else
               echo "Downloading from: $artifact_url"
               curl -fL -H "Authorization: token $GITHUB_TOKEN" -o manager.zip "$artifact_url"
-              unzip -j manager.zip "*.apk" -d ./AnyKernel3/
+              unzip -j manager.zip "*.apk" -d ./kernel_workspace/AnyKernel3/
             fi
           fi
 
