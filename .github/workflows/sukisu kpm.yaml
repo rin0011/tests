@@ -448,7 +448,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.KSUVER }}
-          name: "sukisu ${{ env.KSUVER }}"
+          name: "sukisu kpm ${{ env.KSUVER }}"
           generate_release_notes: true
           body: |
             **Build Details**
