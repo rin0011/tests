@@ -340,7 +340,7 @@ jobs:
           cd $GITHUB_WORKSPACE/kernel_workspace/
           rm -rf ./AnyKernel3/.git
           cd ./android-kernel/out/arch/arm64/boot/
-          curl -LO https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
+          curl -LO https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU_patch/main/kpm/patch_linux
           chmod +x patch_linux
           ./patch_linux
           rm -f Image
