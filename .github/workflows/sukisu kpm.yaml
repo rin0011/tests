@@ -1,4 +1,4 @@
-name: Build sukisu
+name: Build sukisu kpm
 
 on:
   workflow_dispatch:
