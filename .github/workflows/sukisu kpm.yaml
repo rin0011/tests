@@ -1,4 +1,4 @@
-name: Build sukisu no susfs
+name: Build sukisu
 
 on:
   workflow_dispatch:
@@ -43,14 +43,21 @@ jobs:
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
-          repository: rin0011/android_kernel_common_oneplus_sm8750
+          repository: brokestar233/android_kernel_common_oneplus_sm8750
           path: kernel_workspace/android-kernel
+
+      - name: Checkout susfs4ksu
+        uses: actions/checkout@v4
+        with:
+          repository: ShirkNeko/susfs4ksu
+          ref: gki-android15-6.6
+          path: kernel_workspace/susfs4ksu
 
       - name: Checkout SukiSU_patch
         uses: actions/checkout@v4
         with:
           repository: ShirkNeko/SukiSU_patch
-          path: kernel_workspace/SukiSU_patch
+          path: kernel_workspace/SukiSU_patch   
 
       - name: Get asset download url from tag and file name
         id: get-asset-url
@@ -153,18 +160,21 @@ jobs:
       - name: Setup KernelSU
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/main/kernel/setup.sh" | bash -s main
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
           KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
-      - name: Setup hook
+      # 14. SUSFS适配及patch
+      - name: Setup susfs
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+          cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
           cp ../SukiSU_patch/hooks/scope_min_manual_hooks_v1.5.patch ./
-          cp ../SukiSU_patch/hooks/sukisu_tracepoint_hooks_v1.1.patch ./
-          #patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
-          patch -p1 -F 3 < sukisu_tracepoint_hooks_v1.1.patch || true
+          patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
+          patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
           
 
       - name: Add SUSFS Configuration Settings
@@ -180,12 +190,33 @@ jobs:
 
           cat <<EOF >> arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
-          CONFIG_KSU_MANUAL_HOOK=n
-          CONFIG_KSU_TRACEPOINT_HOOK=y
-          CONFIG_BPF_STREAM_PARSER=y
-          CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
-          CONFIG_NETFILTER_XT_SET=y
+          CONFIG_KPM=y
+          CONFIG_KSU_MANUAL_HOOK=y
+          CONFIG_KSU_TRACEPOINT_HOOK=n
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y
+          CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_MAP=n
+          CONFIG_KSU_SUSFS_SUS_SU=n
+          CONFIG_TMPFS_XATTR=y
+          CONFIG_TMPFS_POSIX_ACL=y
+          CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           CONFIG_IP_SET=y
+          CONFIG_IP_NF_TARGET_TTL=y
+          CONFIG_IP6_NF_TARGET_HL=y
+          CONFIG_IP6_NF_MATCH_HL=y
           CONFIG_IP_SET_MAX=65534
           CONFIG_IP_SET_BITMAP_IP=y
           CONFIG_IP_SET_BITMAP_IPMAC=y
@@ -203,9 +234,6 @@ jobs:
           CONFIG_IP_SET_HASH_NETPORT=y
           CONFIG_IP_SET_HASH_NETIFACE=y
           CONFIG_IP_SET_LIST_SET=y
-          CONFIG_IP6_NF_NAT=y
-          CONFIG_IP6_NF_TARGET_MASQUERADE=y
-          CONFIG_LOCALVERSION="-g4dc61d72e02f-abogki415959920-4k"
           EOF
 
       - name: rustc
@@ -231,8 +259,6 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
           export KBUILD_BUILD_HOST=localhost
           export KBUILD_BUILD_USER=Builder
-          export PATH=$GITHUB_WORKSPACE/kernel_workspace/rust-ks-kernel.lnx.4.0.r1-rel-linux-x86-1.73.0b/linux-x86/1.73.0b/bin/rustc:$PATH
-          export PATH=$GITHUB_WORKSPACE/kernel_workspace/build-tools-ks-kernel.lnx.4.0.r1-rel-linux-x86/linux-x86/bin/pahole:$PATH
           export LLVM=1
 
           echo "===== 验证工具链 ====="
@@ -263,7 +289,7 @@ jobs:
               CROSS_COMPILE=aarch64-linux-gnu- \
               RUSTC=$GITHUB_WORKSPACE/kernel_workspace/rust-ks-kernel.lnx.4.0.r1-rel-linux-x86-1.73.0b/linux-x86/1.73.0b/bin/rustc \
               PAHOLE=$GITHUB_WORKSPACE/kernel_workspace/build-tools-ks-kernel.lnx.4.0.r1-rel-linux-x86/linux-x86/bin/pahole \
-              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" 
+              CLANG_AUTOFDO_PROFILE="../android/gki/aarch64/afdo/kernel.afdo" \
 
           # 显示ccache统计
           ccache -s
@@ -272,6 +298,7 @@ jobs:
       - name: Check kernel output files
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace
+          git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           if [ -f android-kernel/out/arch/arm64/boot/Image ]; then
               echo "CHECK_IMAGE=true" >> $GITHUB_ENV
           else
@@ -283,13 +310,43 @@ jobs:
               exit 1
           fi
 
+      - name: Download Latest SukiSU-Ultra APK from CI
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=$(gh api \
+            "repos/SukiSU-Ultra/SukiSU-Ultra/actions/workflows/build-manager.yml/runs?branch=main&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id' || echo "")
+          if [[ -z "$run_id" ]]; then
+            echo "No successful workflow run found. Skipping artifact download."
+          else
+            artifact_url=$(gh api \
+              "repos/SukiSU-Ultra/SukiSU-Ultra/actions/runs/$run_id/artifacts" | \
+              jq -r '.artifacts[] | select(.name == "manager") | .archive_download_url' | head -n1)
+            if [[ -z "$artifact_url" ]]; then
+              echo "No 'manager' artifact found in run $run_id. Skipping download."
+            else
+              echo "Downloading from: $artifact_url"
+              curl -fL -H "Authorization: token $GITHUB_TOKEN" -o manager.zip "$artifact_url"
+              unzip -j manager.zip "*.apk" -d ./AnyKernel3/
+            fi
+          fi
+
       # 20. 打包 AnyKernel3（条件执行）
       - name: Make Anykernel3
         if: env.CHECK_IMAGE == 'true'
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/
-          git clone https://github.com/rin0011/AnyKernel3.git --depth=1
           rm -rf ./AnyKernel3/.git
+          cd ./android-kernel/out/arch/arm64/boot/
+          curl -LO https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/download/0.12.0/patch_linux
+          chmod +x patch_linux
+          ./patch_linux
+          rm -f Image
+          mv oImage Image
+          cd .
+          cd $GITHUB_WORKSPACE/kernel_workspace/
           cp ./android-kernel/out/arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           zip -r9 ../AnyKernel3-${{ env.KSUVER }}.zip *
@@ -372,8 +429,8 @@ jobs:
         if: env.CHECK_IMAGE == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: boot-${{ env.KSUVER }}
-          path: boot-${{ env.KSUVER }}.img
+          name: Image-${{ env.KSUVER }}
+          path: kernel_workspace/boot-${KSUVER}.img
 
       # 22. 上传 AnyKernel3
       - name: Upload AnyKernel3
@@ -391,7 +448,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ env.KSUVER }}
-          name: "sukisu no susfs ${{ env.KSUVER }}"
+          name: "sukisu ${{ env.KSUVER }}"
           generate_release_notes: true
           body: |
             **Build Details**
