@@ -161,7 +161,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
           curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU-Ultra/susfs-main/kernel/setup.sh" | bash -s susfs-main
-          KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 10700)
+          KSU_VERSION=$(cd KernelSU && expr $(git rev-list --count main 2>/dev/null || echo 13000) + 37185)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           #sed -i "s/DKSU_VERSION=13000/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
@@ -172,9 +172,9 @@ jobs:
           cp -r ../susfs4ksu/kernel_patches/fs/* ./fs/
           cp -r ../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android15-6.6.patch ./
-          cp ../SukiSU_patch/hooks/scope_min_manual_hooks_v1.5.patch ./
+          cp ../SukiSU_patch/hooks/scope_min_manual_hooks_v1.6.patch ./
           patch -p1 < 50_add_susfs_in_gki-android15-6.6.patch || true
-          patch -p1 -F 3 < scope_min_manual_hooks_v1.5.patch || true
+          patch -p1 -F 3 < scope_min_manual_hooks_v1.6.patch || true
           
 
       - name: Add SUSFS Configuration Settings
